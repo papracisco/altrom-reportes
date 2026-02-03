@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Altrom Venezuela Reportes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        body { font-family: 'Montserrat', sans-serif; overflow-x: hidden; }
+        
+        .font-reporte { 
+            font-family: 'Libre Baskerville', serif; 
+            font-weight: 700;
+            letter-spacing: -1px;
+            line-height: 1;
+        }
+
+        .text-orange-altrom { color: #F05423; }
+        .bg-orange-altrom { background-color: #F05423; }
+
+        #carrusel-container img {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover;
+            transition: opacity 1.5s ease-in-out;
+            opacity: 0;
+        }
+        #carrusel-container img.active { opacity: 1; }
+    </style>
+</head>
+<body class="bg-white text-gray-800">
+
+    <nav class="p-4 bg-white border-b flex justify-end">
+        <div class="text-right">
+            <p class="font-bold text-orange-altrom text-sm uppercase">José Francisco Parada</p>
+            <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Asistente de Logística y Jefe de Despacho</p>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-6 py-12">
+        <div class="flex flex-col md:flex-row items-center gap-12">
+            <div class="w-full md:w-1/2">
+                <h1 class="font-reporte text-6xl md:text-7xl text-red-700 mb-2 uppercase">
+                    ALTROM <br> VENEZUELA <br> REPORTES
+                </h1>
+                <h2 class="text-2xl tracking-[0.6em] font-light text-orange-altrom mb-10 uppercase italic">
+                    Logística
+                </h2>
+                <button onclick="document.getElementById('modalForm').classList.remove('hidden')" 
+                        class="px-8 py-4 bg-orange-altrom hover:bg-red-700 text-white font-bold rounded-lg transition-all shadow-xl uppercase text-sm tracking-widest">
+                    Abrir Formulario de Reportes
+                </button>
+            </div>
+
+            <div class="w-full md:w-1/2 h-[450px] rounded-[2rem] overflow-hidden shadow-2xl relative border-4 border-white bg-gray-200">
+                <div id="carrusel-container" class="relative w-full h-full">
+                    <img src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80" class="active">
+                    <img src="https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&q=80">
+                    <img src="https://images.unsplash.com/photo-1580674684081-7617fbf3d745?auto=format&fit=crop&q=80">
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-20 grid grid-cols-1 md:grid-cols-3 gap-10 pt-10 border-t border-gray-100">
+            <div>
+                <h4 class="text-orange-altrom font-bold uppercase text-[10px] tracking-widest mb-4 italic">Personal de Flota Altrom</h4>
+                <div class="grid grid-cols-2 gap-2 text-[11px] font-bold text-gray-700 uppercase">
+                    <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Aristides</div>
+                    <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Luismer</div>
+                    <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Alvaro</div>
+                    <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Ramon</div>
+                    <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Enio</div>
+                </div>
+            </div>
+            <div class="bg-red-50 p-6 rounded-2xl border-b-4 border-red-200">
+                <h4 class="text-red-700 font-bold text-xs uppercase mb-2">Control de Despacho</h4>
+                <p class="text-xs text-gray-600 leading-relaxed italic">Validación digital de bultos y peso total para una logística sin errores.</p>
+            </div>
+            <div class="bg-orange-50 p-6 rounded-2xl border-b-4 border-orange-200">
+                <h4 class="text-orange-700 font-bold text-xs uppercase mb-2">Reportes Instantáneos</h4>
+                <p class="text-xs text-gray-600 leading-relaxed italic">Generación de formatos PDF profesionales listos para imprimir y firmar.</p>
+            </div>
+        </div>
+    </main>
+
+    <div id="modalForm" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8">
+            <div class="flex justify-between items-center border-b pb-4 mb-6 text-red-700">
+                <h3 class="text-2xl font-reporte uppercase italic">Nuevo Reporte</h3>
+                <button onclick="document.getElementById('modalForm').classList.add('hidden')" class="text-gray-400 text-3xl font-bold">&times;</button>
+            </div>
+            <form id="formReporte" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="text" id="cliente" placeholder="NOMBRE DE CLIENTE" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 uppercase text-sm border border-gray-100">
+                <input type="date" id="fecha" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100">
+                <input type="text" id="factura" placeholder="N° FACTURA O NOTA" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100">
+                <input type="text" id="ruta" placeholder="RUTA" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100 uppercase">
+                
+                <div class="md:col-span-2 p-4 bg-orange-50 rounded-2xl border border-orange-100 grid grid-cols-4 gap-2">
+                    <input type="text" id="tipo" placeholder="TIPO" class="p-2 text-xs rounded border border-gray-200 uppercase">
+                    <input type="number" id="bultos" placeholder="BULTOS" class="p-2 text-xs rounded border border-gray-200">
+                    <input type="number" id="unidades" placeholder="UNID" class="p-2 text-xs rounded border border-gray-200">
+                    <input type="number" id="peso" step="0.01" placeholder="KG" class="p-2 text-xs rounded border border-gray-200">
+                </div>
+                
+                <input type="text" id="chofer" placeholder="NOMBRE DE CHOFER / VENDEDOR" class="md:col-span-2 bg-gray-50 p-3 rounded-xl outline-none border border-gray-100 uppercase text-sm">
+                <textarea id="novedad" placeholder="RAZÓN DE NOVEDAD (DETALLES)" class="md:col-span-2 bg-gray-50 p-3 rounded-xl h-24 outline-none border border-gray-100 text-sm"></textarea>
+                
+                <button type="button" onclick="exportarPDF()" class="md:col-span-2 py-4 bg-orange-altrom text-white font-bold rounded-xl hover:shadow-lg uppercase tracking-widest text-xs transition-all">Generar y Descargar PDF</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Carrusel
+        const imagenes = document.querySelectorAll('#carrusel-container img');
+        let idx = 0;
+        setInterval(() => {
+            imagenes[idx].classList.remove('active');
+            idx = (idx + 1) % imagenes.length;
+            imagenes[idx].classList.add('active');
+        }, 4500);
+
+        // Función para Exportar PDF
+        function exportarPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Datos del Formulario
+            const cliente = document.getElementById('cliente').value || "N/A";
+            const fecha = document.getElementById('fecha').value || "N/A";
+            const factura = document.getElementById('factura').value || "N/A";
+            const ruta = document.getElementById('ruta').value || "N/A";
+            const tipo = document.getElementById('tipo').value || "N/A";
+            const bultos = document.getElementById('bultos').value || "0";
+            const unidades = document.getElementById('unidades').value || "0";
+            const peso = document.getElementById('peso').value || "0";
+            const chofer = document.getElementById('chofer').value || "N/A";
+            const novedad = document.getElementById('novedad').value || "Sin detalles adicionales.";
+
+            // Diseño del PDF
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(220, 38, 38); // Rojo
+            doc.text("ALTROM VENEZUELA - REPORTE DE LOGÍSTICA", 105, 20, { align: "center" });
+            
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Nota/Factura: ${factura}`, 20, 35);
+            doc.text(`Fecha: ${fecha}`, 150, 35);
+            doc.text(`Cliente: ${cliente.toUpperCase()}`, 20, 45);
+            doc.text(`Ruta: ${ruta.toUpperCase()}`, 20, 55);
+
+            // Tabla de Mercancía
+            doc.autoTable({
+                startY: 65,
+                head: [['TIPO DE MERCANCÍA', 'BULTOS', 'UNIDADES', 'PESO (KG)']],
+                body: [[tipo.toUpperCase(), bultos, unidades, peso]],
+                theme: 'striped',
+                headStyles: { fillColor: [240, 84, 35] } // Naranja Altrom
+            });
+
+            const finalY = doc.lastAutoTable.finalY + 15;
+            doc.text("DETALLES DE NOVEDAD:", 20, finalY);
+            doc.setFont("helvetica", "normal");
+            doc.text(novedad, 20, finalY + 10, { maxWidth: 170 });
+
+            doc.setFont("helvetica", "bold");
+            doc.text(`CHOFER / VENDEDOR: ${chofer.toUpperCase()}`, 20, finalY + 35);
+
+            // Espacio para firma
+            doc.line(20, finalY + 60, 80, finalY + 60);
+            doc.text("FIRMA DE CONFORMIDAD", 20, finalY + 65);
+            
+            doc.line(130, finalY + 60, 190, finalY + 60);
+            doc.text("DESPACHO / ALMACÉN", 130, finalY + 65);
+
+            // Descarga
+            doc.save(`Reporte_Altrom_${factura}.pdf`);
+        }
+    </script>
+</body>
+</html>
