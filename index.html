@@ -8,27 +8,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
         body { font-family: 'Montserrat', sans-serif; overflow-x: hidden; }
-        
-        .font-reporte { 
-            font-family: 'Libre Baskerville', serif; 
-            font-weight: 700;
-            letter-spacing: -1px;
-            line-height: 1;
-        }
-
+        .font-reporte { font-family: 'Libre Baskerville', serif; font-weight: 700; letter-spacing: -1px; line-height: 1; }
         .text-orange-altrom { color: #F05423; }
         .bg-orange-altrom { background-color: #F05423; }
-
-        #carrusel-container img {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover;
-            transition: opacity 1.5s ease-in-out;
-            opacity: 0;
-        }
+        #carrusel-container img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity 1.5s ease-in-out; opacity: 0; }
         #carrusel-container img.active { opacity: 1; }
     </style>
 </head>
@@ -47,9 +34,7 @@
                 <h1 class="font-reporte text-6xl md:text-7xl text-red-700 mb-2 uppercase">
                     ALTROM <br> VENEZUELA <br> REPORTES
                 </h1>
-                <h2 class="text-2xl tracking-[0.6em] font-light text-orange-altrom mb-10 uppercase italic">
-                    Logística
-                </h2>
+                <h2 class="text-2xl tracking-[0.6em] font-light text-orange-altrom mb-10 uppercase italic">Logística</h2>
                 <button onclick="document.getElementById('modalForm').classList.remove('hidden')" 
                         class="px-8 py-4 bg-orange-altrom hover:bg-red-700 text-white font-bold rounded-lg transition-all shadow-xl uppercase text-sm tracking-widest">
                     Abrir Formulario de Reportes
@@ -62,6 +47,25 @@
                     <img src="https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&q=80">
                     <img src="https://images.unsplash.com/photo-1580674684081-7617fbf3d745?auto=format&fit=crop&q=80">
                 </div>
+            </div>
+        </div>
+
+        <div class="mt-20 border-t pt-10">
+            <h3 class="font-reporte text-3xl text-red-700 mb-6 uppercase italic">Historial de Reportes</h3>
+            <div class="overflow-x-auto bg-white rounded-2xl shadow-sm border">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-gray-50 text-orange-700 uppercase font-bold">
+                        <tr>
+                            <th class="p-4">Fecha</th>
+                            <th class="p-4">Cliente</th>
+                            <th class="p-4">Factura</th>
+                            <th class="p-4">Chofer</th>
+                            <th class="p-4 text-center">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaReportes">
+                        </tbody>
+                </table>
             </div>
         </div>
 
@@ -98,24 +102,26 @@
                 <input type="date" id="fecha" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100">
                 <input type="text" id="factura" placeholder="N° FACTURA O NOTA" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100">
                 <input type="text" id="ruta" placeholder="RUTA" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100 uppercase">
-                
                 <div class="md:col-span-2 p-4 bg-orange-50 rounded-2xl border border-orange-100 grid grid-cols-4 gap-2">
                     <input type="text" id="tipo" placeholder="TIPO" class="p-2 text-xs rounded border border-gray-200 uppercase">
                     <input type="number" id="bultos" placeholder="BULTOS" class="p-2 text-xs rounded border border-gray-200">
                     <input type="number" id="unidades" placeholder="UNID" class="p-2 text-xs rounded border border-gray-200">
                     <input type="number" id="peso" step="0.01" placeholder="KG" class="p-2 text-xs rounded border border-gray-200">
                 </div>
-                
                 <input type="text" id="chofer" placeholder="NOMBRE DE CHOFER / VENDEDOR" class="md:col-span-2 bg-gray-50 p-3 rounded-xl outline-none border border-gray-100 uppercase text-sm">
                 <textarea id="novedad" placeholder="RAZÓN DE NOVEDAD (DETALLES)" class="md:col-span-2 bg-gray-50 p-3 rounded-xl h-24 outline-none border border-gray-100 text-sm"></textarea>
-                
-                <button type="button" onclick="exportarPDF()" class="md:col-span-2 py-4 bg-orange-altrom text-white font-bold rounded-xl hover:shadow-lg uppercase tracking-widest text-xs transition-all">Generar y Descargar PDF</button>
+                <button type="button" onclick="guardarYGenerar()" id="btnGuardar" class="md:col-span-2 py-4 bg-orange-altrom text-white font-bold rounded-xl hover:shadow-lg uppercase tracking-widest text-xs transition-all">Guardar Reporte y Descargar PDF</button>
             </form>
         </div>
     </div>
 
     <script>
-        // Carrusel
+        // CONFIGURACIÓN CON TUS DATOS RECIENTES
+        const SUPABASE_URL = 'https://ahubtenryiezbymprtra.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_pd-qR6M790mUr3PQaY_jmQ_yEfW5dyD';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // CARRUSEL
         const imagenes = document.querySelectorAll('#carrusel-container img');
         let idx = 0;
         setInterval(() => {
@@ -124,63 +130,91 @@
             imagenes[idx].classList.add('active');
         }, 4500);
 
-        // Función para Exportar PDF
-        function exportarPDF() {
+        // GUARDAR Y GENERAR
+        async function guardarYGenerar() {
+            const btn = document.getElementById('btnGuardar');
+            btn.innerText = "GUARDANDO...";
+            btn.disabled = true;
+
+            const datos = {
+                cliente: document.getElementById('cliente').value,
+                fecha: document.getElementById('fecha').value,
+                factura: document.getElementById('factura').value,
+                ruta: document.getElementById('ruta').value,
+                tipo: document.getElementById('tipo').value,
+                bultos: parseInt(document.getElementById('bultos').value) || 0,
+                unidades: parseInt(document.getElementById('unidades').value) || 0,
+                peso: parseFloat(document.getElementById('peso').value) || 0,
+                chofer: document.getElementById('chofer').value,
+                novedad: document.getElementById('novedad').value
+            };
+
+            const { error } = await _supabase.from('reportes').insert([datos]);
+
+            if (error) {
+                alert("Error: " + error.message);
+                btn.innerText = "REINTENTAR";
+                btn.disabled = false;
+            } else {
+                exportarPDF(datos);
+                document.getElementById('modalForm').classList.add('hidden');
+                document.getElementById('formReporte').reset();
+                btn.innerText = "Guardar Reporte y Descargar PDF";
+                btn.disabled = false;
+                cargarReportes();
+            }
+        }
+
+        // CARGAR TABLA
+        async function cargarReportes() {
+            const { data, error } = await _supabase.from('reportes').select('*').order('fecha', { ascending: false });
+            if (data) {
+                const tabla = document.getElementById('tablaReportes');
+                tabla.innerHTML = data.map(r => `
+                    <tr class="border-t hover:bg-orange-50 transition-colors">
+                        <td class="p-4">${r.fecha}</td>
+                        <td class="p-4 font-bold uppercase text-red-700">${r.cliente}</td>
+                        <td class="p-4 text-gray-500 italic">${r.factura}</td>
+                        <td class="p-4 uppercase font-semibold">${r.chofer}</td>
+                        <td class="p-4 text-center">
+                            <button onclick='exportarPDF(${JSON.stringify(r)})' class="bg-orange-600 text-white px-3 py-1 rounded-md text-[10px] font-bold uppercase hover:bg-red-700 transition-all">PDF</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        // FUNCIÓN PDF
+        function exportarPDF(data) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            
-            // Datos del Formulario
-            const cliente = document.getElementById('cliente').value || "N/A";
-            const fecha = document.getElementById('fecha').value || "N/A";
-            const factura = document.getElementById('factura').value || "N/A";
-            const ruta = document.getElementById('ruta').value || "N/A";
-            const tipo = document.getElementById('tipo').value || "N/A";
-            const bultos = document.getElementById('bultos').value || "0";
-            const unidades = document.getElementById('unidades').value || "0";
-            const peso = document.getElementById('peso').value || "0";
-            const chofer = document.getElementById('chofer').value || "N/A";
-            const novedad = document.getElementById('novedad').value || "Sin detalles adicionales.";
-
-            // Diseño del PDF
             doc.setFont("helvetica", "bold");
-            doc.setTextColor(220, 38, 38); // Rojo
+            doc.setTextColor(220, 38, 38);
             doc.text("ALTROM VENEZUELA - REPORTE DE LOGÍSTICA", 105, 20, { align: "center" });
-            
-            doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
-            doc.text(`Nota/Factura: ${factura}`, 20, 35);
-            doc.text(`Fecha: ${fecha}`, 150, 35);
-            doc.text(`Cliente: ${cliente.toUpperCase()}`, 20, 45);
-            doc.text(`Ruta: ${ruta.toUpperCase()}`, 20, 55);
-
-            // Tabla de Mercancía
+            doc.setFontSize(10); doc.setTextColor(0, 0, 0);
+            doc.text(`Nota/Factura: ${data.factura}`, 20, 35);
+            doc.text(`Fecha: ${data.fecha}`, 150, 35);
+            doc.text(`Cliente: ${data.cliente.toUpperCase()}`, 20, 45);
+            doc.text(`Ruta: ${data.ruta.toUpperCase()}`, 20, 55);
             doc.autoTable({
                 startY: 65,
                 head: [['TIPO DE MERCANCÍA', 'BULTOS', 'UNIDADES', 'PESO (KG)']],
-                body: [[tipo.toUpperCase(), bultos, unidades, peso]],
+                body: [[data.tipo.toUpperCase(), data.bultos, data.unidades, data.peso]],
                 theme: 'striped',
-                headStyles: { fillColor: [240, 84, 35] } // Naranja Altrom
+                headStyles: { fillColor: [240, 84, 35] }
             });
-
             const finalY = doc.lastAutoTable.finalY + 15;
             doc.text("DETALLES DE NOVEDAD:", 20, finalY);
             doc.setFont("helvetica", "normal");
-            doc.text(novedad, 20, finalY + 10, { maxWidth: 170 });
-
+            doc.text(data.novedad || "Sin detalles adicionales.", 20, finalY + 10, { maxWidth: 170 });
             doc.setFont("helvetica", "bold");
-            doc.text(`CHOFER / VENDEDOR: ${chofer.toUpperCase()}`, 20, finalY + 35);
-
-            // Espacio para firma
-            doc.line(20, finalY + 60, 80, finalY + 60);
-            doc.text("FIRMA DE CONFORMIDAD", 20, finalY + 65);
-            
-            doc.line(130, finalY + 60, 190, finalY + 60);
-            doc.text("DESPACHO / ALMACÉN", 130, finalY + 65);
-
-            // Descarga
-            doc.save(`Reporte_Altrom_${factura}.pdf`);
+            doc.text(`CHOFER / VENDEDOR: ${data.chofer.toUpperCase()}`, 20, finalY + 35);
+            doc.line(20, finalY + 60, 80, finalY + 60); doc.text("FIRMA CONFORMIDAD", 20, finalY + 65);
+            doc.line(130, finalY + 60, 190, finalY + 60); doc.text("DESPACHO / ALMACÉN", 130, finalY + 65);
+            doc.save(`Reporte_Altrom_${data.factura}.pdf`);
         }
+
+        window.onload = cargarReportes;
     </script>
 </body>
-
 </html>
