@@ -227,28 +227,56 @@
         }
 
         // FUNCIÓN REPORTE PDF ORIGINAL
-        function exportarPDF(data) {
+     function exportarPDF(data) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
+            
+            // Título Principal
             doc.setFont("helvetica", "bold");
-            doc.setTextColor(220, 38, 38);
+            doc.setTextColor(220, 38, 38); 
             doc.text("ALTROM VENEZUELA - REPORTE DE LOGÍSTICA", 105, 20, { align: "center" });
-            doc.setFontSize(10); doc.setTextColor(0, 0, 0);
-            doc.text(`Factura: ${data.factura}`, 20, 35);
+            
+            // Datos de Cabecera
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Nota/Factura: ${data.factura}`, 20, 35);
             doc.text(`Fecha: ${data.fecha}`, 150, 35);
             doc.text(`Cliente: ${data.cliente.toUpperCase()}`, 20, 45);
+            doc.text(`Ruta: ${data.ruta ? data.ruta.toUpperCase() : 'N/A'}`, 20, 55);
+
+            // Tabla de Mercancía (Vuelve al diseño original)
             doc.autoTable({
-                startY: 55,
-                head: [['MERCANCÍA', 'BULTOS', 'UNIDADES', 'KG']],
-                body: [[data.tipo.toUpperCase(), data.bulto || data.bultos, data.unidades, data.peso]],
+                startY: 65,
+                head: [['TIPO DE MERCANCÍA', 'BULTOS', 'UNIDADES', 'PESO (KG)']],
+                body: [[data.tipo.toUpperCase(), data.bulto, data.unidades, data.peso]],
                 theme: 'striped',
-                headStyles: { fillColor: [240, 84, 35] }
+                headStyles: { fillColor: [240, 84, 35] } 
             });
-            doc.save(`Reporte_${data.factura}.pdf`);
+
+            // Detalles y Chofer (Recuperados)
+            const finalY = doc.lastAutoTable.finalY + 15;
+            doc.setFont("helvetica", "bold");
+            doc.text("DETALLES DE NOVEDAD:", 20, finalY);
+            doc.setFont("helvetica", "normal");
+            doc.text(data.novedad || "Sin detalles adicionales.", 20, finalY + 10, { maxWidth: 170 });
+
+            doc.setFont("helvetica", "bold");
+            doc.text(`CHOFER / VENDEDOR: ${data.chofer ? data.chofer.toUpperCase() : 'N/A'}`, 20, finalY + 35);
+
+            // Espacios para firma (Recuperados)
+            doc.setDrawColor(200, 200, 200);
+            doc.line(20, finalY + 60, 80, finalY + 60);
+            doc.text("FIRMA CONFORMIDAD", 20, finalY + 65);
+            
+            doc.line(130, finalY + 60, 190, finalY + 60);
+            doc.text("DESPACHO / ALMACÉN", 130, finalY + 65);
+
+            doc.save(`Reporte_Altrom_${data.factura}.pdf`);
         }
 
         window.onload = cargarReportes;
     </script>
 </body>
 </html>
+
 
