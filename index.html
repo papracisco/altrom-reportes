@@ -116,7 +116,7 @@
     </div>
 
     <script>
-        // CONFIGURACIÓN CON TUS DATOS RECIENTES
+        // CONFIGURACIÓN ACTUALIZADA
         const SUPABASE_URL = 'https://ahubtenryiezbymprtra.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_pd-qR6M790mUr3PQaY_jmQ_yEfW5dyD';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -130,7 +130,7 @@
             imagenes[idx].classList.add('active');
         }, 4500);
 
-        // GUARDAR Y GENERAR
+        // GUARDAR Y GENERAR (AJUSTADO A TU TABLA reportes_altrom)
         async function guardarYGenerar() {
             const btn = document.getElementById('btnGuardar');
             btn.innerText = "GUARDANDO...";
@@ -142,14 +142,15 @@
                 factura: document.getElementById('factura').value,
                 ruta: document.getElementById('ruta').value,
                 tipo: document.getElementById('tipo').value,
-                bultos: parseInt(document.getElementById('bultos').value) || 0,
+                bulto: parseInt(document.getElementById('bultos').value) || 0, // Nombre ajustado a 'bulto'
                 unidades: parseInt(document.getElementById('unidades').value) || 0,
                 peso: parseFloat(document.getElementById('peso').value) || 0,
                 chofer: document.getElementById('chofer').value,
                 novedad: document.getElementById('novedad').value
             };
 
-            const { error } = await _supabase.from('reportes').insert([datos]);
+            // Cambio de 'reportes' a 'reportes_altrom'
+            const { error } = await _supabase.from('reportes_altrom').insert([datos]);
 
             if (error) {
                 alert("Error: " + error.message);
@@ -165,9 +166,9 @@
             }
         }
 
-        // CARGAR TABLA
+        // CARGAR TABLA (AJUSTADO A TU TABLA reportes_altrom)
         async function cargarReportes() {
-            const { data, error } = await _supabase.from('reportes').select('*').order('fecha', { ascending: false });
+            const { data, error } = await _supabase.from('reportes_altrom').select('*').order('created_at', { ascending: false });
             if (data) {
                 const tabla = document.getElementById('tablaReportes');
                 tabla.innerHTML = data.map(r => `
@@ -196,13 +197,16 @@
             doc.text(`Fecha: ${data.fecha}`, 150, 35);
             doc.text(`Cliente: ${data.cliente.toUpperCase()}`, 20, 45);
             doc.text(`Ruta: ${data.ruta.toUpperCase()}`, 20, 55);
+            
+            // Ajustado para mostrar 'bulto'
             doc.autoTable({
                 startY: 65,
                 head: [['TIPO DE MERCANCÍA', 'BULTOS', 'UNIDADES', 'PESO (KG)']],
-                body: [[data.tipo.toUpperCase(), data.bultos, data.unidades, data.peso]],
+                body: [[data.tipo.toUpperCase(), data.bulto, data.unidades, data.peso]],
                 theme: 'striped',
                 headStyles: { fillColor: [240, 84, 35] }
             });
+
             const finalY = doc.lastAutoTable.finalY + 15;
             doc.text("DETALLES DE NOVEDAD:", 20, finalY);
             doc.setFont("helvetica", "normal");
