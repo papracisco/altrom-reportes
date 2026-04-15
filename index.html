@@ -69,28 +69,26 @@
         </div>
     </main>
 
-    <div class="mt-20 grid grid-cols-1 md:grid-cols-3 gap-10 pt-10 border-t border-gray-100 mb-10">
-            <div>
-                <h4 class="text-orange-altrom font-bold uppercase text-[10px] tracking-widest mb-4 italic">Personal de Flota Altrom</h4>
-                <div class="grid grid-cols-2 gap-2 text-[11px] font-bold text-gray-700 uppercase">
-                    <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Aristides</div>
-                    <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Luismer</div>
-                    <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Alvaro</div>
-                    <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Ramon</div>
-                    <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Enio</div>
-                </div>
-            </div>
-
-            <div class="bg-red-50 p-6 rounded-2xl border-b-4 border-red-200">
-                <h4 class="text-red-700 font-bold text-xs uppercase mb-2">Control de Despacho</h4>
-                <p class="text-xs text-gray-600 leading-relaxed italic">Validación digital de bultos y peso total para una logística sin errores.</p>
-            </div>
-
-            <div class="bg-orange-50 p-6 rounded-2xl border-b-4 border-orange-200">
-                <h4 class="text-orange-700 font-bold text-xs uppercase mb-2">Reportes Instantáneos</h4>
-                <p class="text-xs text-gray-600 leading-relaxed italic">Generación de formatos PDF profesionales listos para imprimir y firmar.</p>
+    <div class="mt-20 grid grid-cols-1 md:grid-cols-3 gap-10 pt-10 border-t border-gray-100 mb-10 px-6">
+        <div>
+            <h4 class="text-orange-altrom font-bold uppercase text-[10px] tracking-widest mb-4 italic">Personal de Flota Altrom</h4>
+            <div class="grid grid-cols-2 gap-2 text-[11px] font-bold text-gray-700 uppercase">
+                <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Aristides</div>
+                <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Luismer</div>
+                <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Alvaro</div>
+                <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Ramon</div>
+                <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Enio</div>
             </div>
         </div>
+        <div class="bg-red-50 p-6 rounded-2xl border-b-4 border-red-200">
+            <h4 class="text-red-700 font-bold text-xs uppercase mb-2">Control de Despacho</h4>
+            <p class="text-xs text-gray-600 leading-relaxed italic">Validación digital de bultos y peso total para una logística sin errores.</p>
+        </div>
+        <div class="bg-orange-50 p-6 rounded-2xl border-b-4 border-orange-200">
+            <h4 class="text-orange-700 font-bold text-xs uppercase mb-2">Reportes Instantáneos</h4>
+            <p class="text-xs text-gray-600 leading-relaxed italic">Generación de formatos PDF profesionales listos para imprimir y firmar.</p>
+        </div>
+    </div>
 
     <div id="modalForm" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8">
@@ -98,20 +96,30 @@
                 <h3 class="text-2xl font-reporte uppercase italic">Nuevo Reporte</h3>
                 <button onclick="document.getElementById('modalForm').classList.add('hidden')" class="text-gray-400 text-3xl font-bold">&times;</button>
             </div>
-            <form id="formReporte" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="text" id="cliente" placeholder="NOMBRE DE CLIENTE" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 uppercase text-sm border border-gray-100">
-                <input type="date" id="fecha" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100">
-                <input type="text" id="factura" placeholder="N° FACTURA O NOTA" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100">
-                <input type="text" id="ruta" placeholder="RUTA" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100 uppercase">
-                <div class="md:col-span-2 p-4 bg-orange-50 rounded-2xl border border-orange-100 grid grid-cols-4 gap-2">
-                    <input type="text" id="tipo" placeholder="TIPO" class="p-2 text-xs rounded border border-gray-200 uppercase">
-                    <input type="number" id="bultos" placeholder="BULTOS" class="p-2 text-xs rounded border border-gray-200">
-                    <input type="number" id="unidades" placeholder="UNID" class="p-2 text-xs rounded border border-gray-200">
-                    <input type="number" id="peso" step="0.01" placeholder="KG" class="p-2 text-xs rounded border border-gray-200">
+            <form id="formReporte" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="text" id="cliente" placeholder="NOMBRE DE CLIENTE" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 uppercase text-sm border border-gray-100">
+                    <input type="date" id="fecha" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100">
+                    <input type="text" id="factura" placeholder="N° FACTURA O NOTA" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100">
+                    <input type="text" id="ruta" placeholder="RUTA" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100 uppercase">
                 </div>
-                <input type="text" id="chofer" placeholder="NOMBRE DE CHOFER" class="md:col-span-2 bg-gray-50 p-3 rounded-xl outline-none border border-gray-100 uppercase text-sm">
-                <textarea id="novedad" placeholder="RAZÓN DE NOVEDAD" class="md:col-span-2 bg-gray-50 p-3 rounded-xl h-24 outline-none border border-gray-100 text-sm"></textarea>
-                <button type="button" onclick="guardarYGenerar()" id="btnGuardar" class="md:col-span-2 py-4 bg-orange-altrom text-white font-bold rounded-xl hover:shadow-lg uppercase tracking-widest text-xs">Guardar Reporte y Descargar PDF</button>
+
+                <div id="contenedorProductos" class="space-y-2">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Mercancía</p>
+                    <div class="fila-producto grid grid-cols-4 gap-2 p-3 bg-orange-50 rounded-xl border border-orange-100">
+                        <input type="text" placeholder="TIPO" class="p-2 text-xs rounded border border-gray-200 uppercase">
+                        <input type="number" placeholder="BULTOS" class="p-2 text-xs rounded border border-gray-200">
+                        <input type="number" placeholder="UNID" class="p-2 text-xs rounded border border-gray-200">
+                        <input type="number" step="0.01" placeholder="KG" class="p-2 text-xs rounded border border-gray-200">
+                    </div>
+                </div>
+                <button type="button" onclick="agregarFila()" class="text-orange-600 text-[10px] font-bold uppercase hover:underline">+ Añadir otro producto</button>
+
+                <div class="grid grid-cols-1 gap-4 pt-4 border-t">
+                    <input type="text" id="chofer" placeholder="NOMBRE DE CHOFER" class="bg-gray-50 p-3 rounded-xl outline-none border border-gray-100 uppercase text-sm">
+                    <textarea id="novedad" placeholder="RAZÓN DE NOVEDAD" class="bg-gray-50 p-3 rounded-xl h-24 outline-none border border-gray-100 text-sm"></textarea>
+                </div>
+                <button type="button" onclick="guardarYGenerar()" id="btnGuardar" class="w-full py-4 bg-orange-altrom text-white font-bold rounded-xl hover:shadow-lg uppercase tracking-widest text-xs transition-all">Guardar Reporte y Descargar PDF</button>
             </form>
         </div>
     </div>
@@ -121,7 +129,6 @@
         const SUPABASE_KEY = 'sb_publishable_pd-qR6M790mUr3PQaY_jmQ_yEfW5dyD';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // CARRUSEL
         const imagenes = document.querySelectorAll('#carrusel-container img');
         let idx = 0;
         setInterval(() => {
@@ -130,7 +137,6 @@
             imagenes[idx].classList.add('active');
         }, 4500);
 
-        // CARGAR TABLA
         async function cargarReportes() {
             const { data, error } = await _supabase.from('reportes_altrom').select('*').order('created_at', { ascending: false });
             if (data) {
@@ -147,7 +153,7 @@
                             <td class="p-4 text-gray-500">${r.factura}</td>
                             <td class="p-4 uppercase">${r.chofer}</td>
                             <td class="p-4 flex gap-2 justify-center">
-                                <button onclick='exportarPDF(${JSON.stringify(r)})' class="bg-gray-800 text-white px-2 py-1 rounded text-[9px] font-bold">PDF</button>
+                                <button onclick='reexportarPDF(${JSON.stringify(r)})' class="bg-gray-800 text-white px-2 py-1 rounded text-[9px] font-bold">PDF</button>
                                 ${!esListo ? `<button onclick='generarNC(${JSON.stringify(r)})' class="bg-red-600 text-white px-2 py-1 rounded text-[9px] font-bold uppercase">NC</button>` : ''}
                             </td>
                         </tr>
@@ -156,127 +162,116 @@
             }
         }
 
-        // GUARDAR REPORTE
+        function agregarFila() {
+            const container = document.getElementById('contenedorProductos');
+            const nuevaFila = document.createElement('div');
+            nuevaFila.className = 'fila-producto grid grid-cols-4 gap-2 p-3 bg-orange-50 rounded-xl border border-orange-100 mt-2';
+            nuevaFila.innerHTML = `
+                <input type="text" placeholder="TIPO" class="p-2 text-xs rounded border border-gray-200 uppercase">
+                <input type="number" placeholder="BULTOS" class="p-2 text-xs rounded border border-gray-200">
+                <input type="number" placeholder="UNID" class="p-2 text-xs rounded border border-gray-200">
+                <input type="number" step="0.01" placeholder="KG" class="p-2 text-xs rounded border border-gray-200">
+            `;
+            container.appendChild(nuevaFila);
+        }
+
         async function guardarYGenerar() {
             const btn = document.getElementById('btnGuardar');
             btn.innerText = "GUARDANDO...";
             btn.disabled = true;
+
+            const filas = document.querySelectorAll('.fila-producto');
+            let listaProductos = [];
+            filas.forEach(f => {
+                const ins = f.querySelectorAll('input');
+                if(ins[0].value.trim() !== "") {
+                    listaProductos.push([ins[0].value.toUpperCase(), ins[1].value || 0, ins[2].value || 0, ins[3].value || 0]);
+                }
+            });
 
             const datos = {
                 cliente: document.getElementById('cliente').value,
                 fecha: document.getElementById('fecha').value,
                 factura: document.getElementById('factura').value,
                 ruta: document.getElementById('ruta').value,
-                tipo: document.getElementById('tipo').value,
-                bulto: parseInt(document.getElementById('bultos').value) || 0,
-                unidades: parseInt(document.getElementById('unidades').value) || 0,
-                peso: parseFloat(document.getElementById('peso').value) || 0,
                 chofer: document.getElementById('chofer').value,
                 novedad: document.getElementById('novedad').value,
-                estado: 'PENDIENTE'
+                estado: 'PENDIENTE',
+                tipo: JSON.stringify(listaProductos) // Guardamos el array como texto
             };
 
             const { error } = await _supabase.from('reportes_altrom').insert([datos]);
 
             if (error) {
                 alert("Error: " + error.message);
-                btn.innerText = "REINTENTAR";
-                btn.disabled = false;
+                btn.innerText = "REINTENTAR"; btn.disabled = false;
             } else {
-                exportarPDF(datos);
+                exportarPDF_Logic(datos, listaProductos, "REPORTE");
                 document.getElementById('modalForm').classList.add('hidden');
                 document.getElementById('formReporte').reset();
-                btn.innerText = "Guardar Reporte y Descargar PDF";
-                btn.disabled = false;
+                btn.innerText = "Guardar Reporte y Descargar PDF"; btn.disabled = false;
                 cargarReportes();
             }
         }
 
-        // GENERAR NOTA DE CRÉDITO (B/N)
-        async function generarNC(data) {
+        function exportarPDF_Logic(data, productos, titulo) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(22);
-            doc.text("NOTA DE CRÉDITO", 105, 25, { align: "center" });
-            doc.setFontSize(10);
-            doc.text("ALTROM VENEZUELA", 20, 40);
-            doc.setFont("helvetica", "normal");
-            doc.text(`Ref: ${data.factura}`, 20, 45);
-            doc.text(`Emisión: ${new Date().toLocaleDateString()}`, 150, 45);
-            doc.line(20, 50, 190, 50);
-            doc.text(`Cliente: ${data.cliente.toUpperCase()}`, 20, 60);
-            doc.autoTable({
-                startY: 75,
-                head: [['DESCRIPCIÓN', 'CANTIDAD (B/U)', 'PESO REVERSADO']],
-                body: [[data.tipo.toUpperCase(), `${data.bulto}B / ${data.unidades}U`, `${data.peso} KG`]],
-                theme: 'grid',
-                headStyles: { fillColor: [40, 40, 40] }
-            });
-            const finalY = doc.lastAutoTable.finalY + 15;
-            doc.text("MOTIVO: " + (data.novedad || "Ajuste Logístico"), 20, finalY);
-            doc.line(65, finalY + 40, 145, finalY + 40);
-            doc.text("AUTORIZADO", 105, finalY + 45, { align: "center" });
-
-            // Actualizar estado en Supabase
-            const { error } = await _supabase.from('reportes_altrom').update({ estado: 'LISTO' }).eq('id', data.id);
-            if (!error) {
-                doc.save(`NC_${data.factura}.pdf`);
-                cargarReportes();
-            }
-        }
-
-        // FUNCIÓN REPORTE PDF ORIGINAL
-     function exportarPDF(data) {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
+            const esNC = titulo === "NOTA DE CRÉDITO";
             
-            // Título Principal
             doc.setFont("helvetica", "bold");
-            doc.setTextColor(220, 38, 38); 
-            doc.text("ALTROM VENEZUELA - REPORTE DE LOGÍSTICA", 105, 20, { align: "center" });
+            doc.setTextColor(esNC ? 0 : 220, esNC ? 0 : 38, esNC ? 0 : 38);
+            doc.text(esNC ? "NOTA DE CRÉDITO" : "ALTROM VENEZUELA - REPORTE DE LOGÍSTICA", 105, 20, { align: "center" });
             
-            // Datos de Cabecera
-            doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(10); doc.setTextColor(0, 0, 0);
             doc.text(`Nota/Factura: ${data.factura}`, 20, 35);
             doc.text(`Fecha: ${data.fecha}`, 150, 35);
             doc.text(`Cliente: ${data.cliente.toUpperCase()}`, 20, 45);
             doc.text(`Ruta: ${data.ruta ? data.ruta.toUpperCase() : 'N/A'}`, 20, 55);
 
-            // Tabla de Mercancía (Vuelve al diseño original)
             doc.autoTable({
                 startY: 65,
-                head: [['TIPO DE MERCANCÍA', 'BULTOS', 'UNIDADES', 'PESO (KG)']],
-                body: [[data.tipo.toUpperCase(), data.bulto, data.unidades, data.peso]],
-                theme: 'striped',
-                headStyles: { fillColor: [240, 84, 35] } 
+                head: [[esNC ? 'DESCRIPCIÓN' : 'TIPO DE MERCANCÍA', 'BULTOS', 'UNIDADES', 'PESO (KG)']],
+                body: productos,
+                theme: esNC ? 'grid' : 'striped',
+                headStyles: { fillColor: esNC ? [40, 40, 40] : [240, 84, 35] }
             });
 
-            // Detalles y Chofer (Recuperados)
             const finalY = doc.lastAutoTable.finalY + 15;
             doc.setFont("helvetica", "bold");
-            doc.text("DETALLES DE NOVEDAD:", 20, finalY);
+            doc.text(esNC ? "MOTIVO DE CRÉDITO:" : "DETALLES DE NOVEDAD:", 20, finalY);
             doc.setFont("helvetica", "normal");
             doc.text(data.novedad || "Sin detalles adicionales.", 20, finalY + 10, { maxWidth: 170 });
-
-            doc.setFont("helvetica", "bold");
-            doc.text(`CHOFER / VENDEDOR: ${data.chofer ? data.chofer.toUpperCase() : 'N/A'}`, 20, finalY + 35);
-
-            // Espacios para firma (Recuperados)
-            doc.setDrawColor(200, 200, 200);
-            doc.line(20, finalY + 60, 80, finalY + 60);
-            doc.text("FIRMA CONFORMIDAD", 20, finalY + 65);
             
-            doc.line(130, finalY + 60, 190, finalY + 60);
-            doc.text("DESPACHO / ALMACÉN", 130, finalY + 65);
+            doc.setFont("helvetica", "bold");
+            doc.text(`CHOFER / VENDEDOR: ${data.chofer.toUpperCase()}`, 20, finalY + 35);
+            
+            doc.setDrawColor(200, 200, 200);
+            doc.line(20, finalY + 60, 80, finalY + 60); doc.text(esNC ? "AUTORIZADO ADM" : "FIRMA CONFORMIDAD", 20, finalY + 65);
+            doc.line(130, finalY + 60, 190, finalY + 60); doc.text(esNC ? "LOGÍSTICA" : "DESPACHO / ALMACÉN", 130, finalY + 65);
 
-            doc.save(`Reporte_Altrom_${data.factura}.pdf`);
+            doc.save(`${titulo}_${data.factura}.pdf`);
+        }
+
+        function reexportarPDF(r) {
+            let p; 
+            try { p = JSON.parse(r.tipo); } 
+            catch(e) { p = [[r.tipo, r.bulto || 0, r.unidades || 0, r.peso || 0]]; }
+            exportarPDF_Logic(r, p, "REPORTE");
+        }
+
+        async function generarNC(r) {
+            let p; 
+            try { p = JSON.parse(r.tipo); } 
+            catch(e) { p = [[r.tipo, r.bulto || 0, r.unidades || 0, r.peso || 0]]; }
+            const { error } = await _supabase.from('reportes_altrom').update({ estado: 'LISTO' }).eq('id', r.id);
+            if (!error) {
+                exportarPDF_Logic(r, p, "NOTA DE CRÉDITO");
+                cargarReportes();
+            }
         }
 
         window.onload = cargarReportes;
     </script>
 </body>
 </html>
-
-
