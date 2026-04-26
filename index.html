@@ -27,6 +27,7 @@
     <div id="pantallaClave" class="fixed inset-0 z-[100] flex items-center justify-center bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80');">
         <div class="absolute inset-0 bg-black/60"></div>
         <div class="glass p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md relative text-center border border-white/20">
+            <img src="logo.png" alt="Altrom Logo" class="h-20 w-auto mx-auto mb-6 object-contain">
             <h1 class="font-reporte text-3xl text-red-700 mb-2 uppercase">SISTEMA ALTROM</h1>
             <p class="text-[10px] tracking-widest text-gray-500 mb-8 uppercase font-bold italic">Logística y Despacho</p>
             <input type="password" id="inputClaveMaestra" placeholder="Introduce la Clave de Acceso" class="w-full p-4 rounded-2xl bg-gray-100 border-none outline-none focus:ring-2 focus:ring-orange-500 mb-4 text-center font-bold">
@@ -36,6 +37,7 @@
 
     <div id="pantallaAuth" class="hidden-content fixed inset-0 z-[90] flex items-center justify-center bg-gray-100 px-4">
         <div class="bg-white p-10 rounded-[2.5rem] shadow-xl w-full max-w-md text-center">
+            <img src="logo.png" alt="Altrom Logo" class="h-12 w-auto mx-auto mb-6 object-contain">
             <h2 class="font-reporte text-2xl text-orange-altrom mb-6 uppercase italic">Identificación de Usuario</h2>
             <input type="email" id="email" placeholder="Correo Electrónico" class="w-full p-4 rounded-2xl bg-gray-50 mb-3 outline-none border border-gray-100 text-sm">
             <input type="password" id="password" placeholder="Contraseña" class="w-full p-4 rounded-2xl bg-gray-50 mb-6 outline-none border border-gray-100 text-sm">
@@ -49,7 +51,10 @@
 
     <div id="contenidoWeb" class="hidden-content">
         <nav class="p-4 bg-white border-b flex justify-between items-center px-8 shadow-sm">
-            <button onclick="handleLogout()" class="text-[9px] font-bold text-gray-400 hover:text-red-600 uppercase transition-colors tracking-widest">Cerrar Sesión</button>
+            <div class="flex items-center gap-6">
+                <img src="logo.png" alt="Altrom Logo" class="h-10 w-auto object-contain">
+                <button onclick="handleLogout()" class="text-[9px] font-bold text-gray-400 hover:text-red-600 uppercase transition-colors tracking-widest">Cerrar Sesión</button>
+            </div>
             <div class="text-right">
                 <p class="font-bold text-orange-altrom text-sm uppercase">José Francisco Parada</p>
                 <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Asistente de Logística y Jefe de Despacho</p>
@@ -153,13 +158,10 @@
     </div>
 
     <script>
-        // CONFIGURACIÓN DE SEGURIDAD
         const CLAVE_FIJA = "Altrom2024"; 
         const SUPABASE_URL = 'https://ahubtenryiezbymprtra.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_pd-qR6M790mUr3PQaY_jmQ_yEfW5dyD';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-        // --- LÓGICA DE ACCESO ---
 
         function verificarClave() {
             const pass = document.getElementById('inputClaveMaestra').value;
@@ -173,11 +175,8 @@
 
         async function checkSession() {
             const { data: { session } } = await _supabase.auth.getSession();
-            if (session) {
-                mostrarWeb();
-            } else {
-                document.getElementById('pantallaAuth').classList.remove('hidden-content');
-            }
+            if (session) { mostrarWeb(); } 
+            else { document.getElementById('pantallaAuth').classList.remove('hidden-content'); }
         }
 
         async function handleLogin() {
@@ -185,7 +184,6 @@
             const password = document.getElementById('password').value;
             const msg = document.getElementById('authMsg');
             msg.innerText = "Validando...";
-
             const { error } = await _supabase.auth.signInWithPassword({ email, password });
             if (error) { msg.innerText = "Error: " + error.message; }
             else { mostrarWeb(); }
@@ -195,14 +193,9 @@
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             const msg = document.getElementById('authMsg');
-            msg.innerText = "Registrando...";
-
             const { error } = await _supabase.auth.signUp({ email, password });
             if (error) { msg.innerText = "Error: " + error.message; }
-            else { 
-                msg.classList.replace('text-red-500', 'text-green-600');
-                msg.innerText = "¡Registro Exitoso! Ya puedes entrar."; 
-            }
+            else { msg.classList.replace('text-red-500', 'text-green-600'); msg.innerText = "¡Registro Exitoso! Ya puedes entrar."; }
         }
 
         function mostrarWeb() {
@@ -216,8 +209,6 @@
             location.reload();
         }
 
-        // --- LÓGICA DE REPORTES ---
-
         async function cargarReportes() {
             const { data, error } = await _supabase.from('reportes_altrom').select('*').order('created_at', { ascending: false });
             if (data) {
@@ -226,9 +217,7 @@
                     const esListo = r.estado === 'LISTO';
                     return `
                         <tr class="border-t hover:bg-orange-50 transition-colors">
-                            <td class="p-4 font-bold ${esListo ? 'text-green-600' : 'text-orange-500'}">
-                                ${esListo ? '✓ LISTO' : 'PENDIENTE'}
-                            </td>
+                            <td class="p-4 font-bold ${esListo ? 'text-green-600' : 'text-orange-500'}">${esListo ? '✓ LISTO' : 'PENDIENTE'}</td>
                             <td class="p-4">${r.fecha}</td>
                             <td class="p-4 font-bold uppercase text-red-700">${r.cliente}</td>
                             <td class="p-4 text-gray-500">${r.factura}</td>
@@ -247,52 +236,22 @@
             const container = document.getElementById('contenedorProductos');
             const nuevaFila = document.createElement('div');
             nuevaFila.className = 'fila-producto grid grid-cols-4 gap-2 p-3 bg-orange-50 rounded-xl border border-orange-100 mt-2';
-            nuevaFila.innerHTML = `
-                <input type="text" placeholder="TIPO" class="p-2 text-xs rounded border border-gray-200 uppercase">
-                <input type="number" placeholder="BULTOS" class="p-2 text-xs rounded border border-gray-200">
-                <input type="number" placeholder="UNID" class="p-2 text-xs rounded border border-gray-200">
-                <input type="number" step="0.01" placeholder="KG" class="p-2 text-xs rounded border border-gray-200">
-            `;
+            nuevaFila.innerHTML = `<input type="text" placeholder="TIPO" class="p-2 text-xs rounded border border-gray-200 uppercase"><input type="number" placeholder="BULTOS" class="p-2 text-xs rounded border border-gray-200"><input type="number" placeholder="UNID" class="p-2 text-xs rounded border border-gray-200"><input type="number" step="0.01" placeholder="KG" class="p-2 text-xs rounded border border-gray-200">`;
             container.appendChild(nuevaFila);
         }
 
         async function guardarYGenerar() {
-            const btn = document.getElementById('btnGuardar');
-            btn.innerText = "GUARDANDO...";
-            btn.disabled = true;
-
+            const btn = document.getElementById('btnGuardar'); btn.innerText = "GUARDANDO..."; btn.disabled = true;
             const filas = document.querySelectorAll('.fila-producto');
             let listaProductos = [];
             filas.forEach(f => {
                 const ins = f.querySelectorAll('input');
-                if(ins[0].value.trim() !== "") {
-                    listaProductos.push([ins[0].value.toUpperCase(), ins[1].value || 0, ins[2].value || 0, ins[3].value || 0]);
-                }
+                if(ins[0].value.trim() !== "") { listaProductos.push([ins[0].value.toUpperCase(), ins[1].value || 0, ins[2].value || 0, ins[3].value || 0]); }
             });
-
-            const datos = {
-                cliente: document.getElementById('cliente').value,
-                fecha: document.getElementById('fecha').value,
-                factura: document.getElementById('factura').value,
-                ruta: document.getElementById('ruta').value,
-                chofer: document.getElementById('chofer').value,
-                novedad: document.getElementById('novedad').value,
-                estado: 'PENDIENTE',
-                tipo: JSON.stringify(listaProductos)
-            };
-
+            const datos = { cliente: document.getElementById('cliente').value, fecha: document.getElementById('fecha').value, factura: document.getElementById('factura').value, ruta: document.getElementById('ruta').value, chofer: document.getElementById('chofer').value, novedad: document.getElementById('novedad').value, estado: 'PENDIENTE', tipo: JSON.stringify(listaProductos) };
             const { error } = await _supabase.from('reportes_altrom').insert([datos]);
-
-            if (error) {
-                alert("Error: " + error.message);
-                btn.innerText = "REINTENTAR"; btn.disabled = false;
-            } else {
-                exportarPDF_Logic(datos, listaProductos, "REPORTE");
-                document.getElementById('modalForm').classList.add('hidden');
-                document.getElementById('formReporte').reset();
-                btn.innerText = "Guardar Reporte y Descargar PDF"; btn.disabled = false;
-                cargarReportes();
-            }
+            if (error) { alert("Error: " + error.message); btn.innerText = "REINTENTAR"; btn.disabled = false; }
+            else { exportarPDF_Logic(datos, listaProductos, "REPORTE"); document.getElementById('modalForm').classList.add('hidden'); document.getElementById('formReporte').reset(); btn.innerText = "Guardar Reporte y Descargar PDF"; btn.disabled = false; cargarReportes(); }
         }
 
         function exportarPDF_Logic(data, productos, titulo) {
@@ -300,37 +259,27 @@
             const doc = new jsPDF();
             const esNC = titulo === "NOTA DE CRÉDITO";
             
+            // AGREGAR LOGO AL PDF
+            doc.addImage('logo.png', 'PNG', 15, 8, 25, 25);
+            
             doc.setFont("helvetica", "bold");
             doc.setTextColor(esNC ? 0 : 220, esNC ? 0 : 38, esNC ? 0 : 38);
             doc.text(esNC ? "NOTA DE CRÉDITO" : "ALTROM VENEZUELA - REPORTE DE LOGÍSTICA", 105, 20, { align: "center" });
             
             doc.setFontSize(10); doc.setTextColor(0, 0, 0);
-            doc.text(`Nota/Factura: ${data.factura}`, 20, 35);
-            doc.text(`Fecha: ${data.fecha}`, 150, 35);
-            doc.text(`Cliente: ${data.cliente.toUpperCase()}`, 20, 45);
-            doc.text(`Ruta: ${data.ruta ? data.ruta.toUpperCase() : 'N/A'}`, 20, 55);
+            doc.text(`Nota/Factura: ${data.factura}`, 20, 38);
+            doc.text(`Fecha: ${data.fecha}`, 150, 38);
+            doc.text(`Cliente: ${data.cliente.toUpperCase()}`, 20, 48);
+            doc.text(`Ruta: ${data.ruta ? data.ruta.toUpperCase() : 'N/A'}`, 20, 58);
 
-            doc.autoTable({
-                startY: 65,
-                head: [[esNC ? 'DESCRIPCIÓN' : 'TIPO DE MERCANCÍA', 'BULTOS', 'UNIDADES', 'PESO (KG)']],
-                body: productos,
-                theme: esNC ? 'grid' : 'striped',
-                headStyles: { fillColor: esNC ? [40, 40, 40] : [240, 84, 35] }
-            });
-
+            doc.autoTable({ startY: 68, head: [[esNC ? 'DESCRIPCIÓN' : 'TIPO DE MERCANCÍA', 'BULTOS', 'UNIDADES', 'PESO (KG)']], body: productos, theme: esNC ? 'grid' : 'striped', headStyles: { fillColor: esNC ? [40, 40, 40] : [240, 84, 35] } });
             const finalY = doc.lastAutoTable.finalY + 15;
-            doc.setFont("helvetica", "bold");
-            doc.text(esNC ? "MOTIVO DE CRÉDITO:" : "DETALLES DE NOVEDAD:", 20, finalY);
-            doc.setFont("helvetica", "normal");
-            doc.text(data.novedad || "Sin detalles adicionales.", 20, finalY + 10, { maxWidth: 170 });
-            
-            doc.setFont("helvetica", "bold");
-            doc.text(`CHOFER / VENDEDOR: ${data.chofer.toUpperCase()}`, 20, finalY + 35);
-            
+            doc.setFont("helvetica", "bold"); doc.text(esNC ? "MOTIVO DE CRÉDITO:" : "DETALLES DE NOVEDAD:", 20, finalY);
+            doc.setFont("helvetica", "normal"); doc.text(data.novedad || "Sin detalles adicionales.", 20, finalY + 10, { maxWidth: 170 });
+            doc.setFont("helvetica", "bold"); doc.text(`CHOFER / VENDEDOR: ${data.chofer.toUpperCase()}`, 20, finalY + 35);
             doc.setDrawColor(200, 200, 200);
             doc.line(20, finalY + 60, 80, finalY + 60); doc.text(esNC ? "AUTORIZADO ADM" : "FIRMA CONFORMIDAD", 20, finalY + 65);
             doc.line(130, finalY + 60, 190, finalY + 60); doc.text(esNC ? "LOGÍSTICA" : "DESPACHO / ALMACÉN", 130, finalY + 65);
-
             doc.save(`${titulo}_${data.factura}.pdf`);
         }
 
@@ -345,7 +294,6 @@
             if (!error) { exportarPDF_Logic(r, p, "NOTA DE CRÉDITO"); cargarReportes(); }
         }
 
-        // CARRUSEL LOGIC
         const imagenesArr = document.querySelectorAll('#carrusel-container img');
         let idxImg = 0;
         setInterval(() => {
