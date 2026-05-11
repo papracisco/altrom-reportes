@@ -20,6 +20,7 @@
         #carrusel-container img.active { opacity: 1; }
         .glass { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
         .hidden-content { display: none !important; }
+        .tab-active { border-bottom: 4px solid #F05423; color: #F05423; font-weight: bold; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
@@ -57,46 +58,103 @@
             </div>
             <div class="text-right">
                 <p class="font-bold text-orange-altrom text-sm uppercase">José Francisco Parada</p>
-                <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Asistente de Logística y Jefe de Despacho</p>
+                <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold italic">Asistente de Logística y Jefe de Despacho</p>
             </div>
         </nav>
 
+        <div class="bg-white border-b sticky top-0 z-40">
+            <div class="container mx-auto px-6 flex gap-8">
+                <button onclick="switchTab('tabReportes')" id="btnTabReportes" class="py-4 text-xs font-bold uppercase tracking-widest tab-active transition-all">Reporte de Novedades</button>
+                <button onclick="switchTab('tabPedidos')" id="btnTabPedidos" class="py-4 text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-orange-altrom transition-all">Control de Pedidos (Facturación)</button>
+            </div>
+        </div>
+
         <main class="container mx-auto px-6 py-12">
-            <div class="flex flex-col md:flex-row items-center gap-12">
-                <div class="w-full md:w-1/2">
-                    <h1 class="font-reporte text-6xl md:text-7xl text-red-700 mb-2 uppercase">ALTROM <br> VENEZUELA <br> REPORTES</h1>
-                    <h2 class="text-2xl tracking-[0.6em] font-light text-orange-altrom mb-10 uppercase italic">Logística</h2>
-                    <button onclick="document.getElementById('modalForm').classList.remove('hidden')" 
-                            class="px-8 py-4 bg-orange-altrom hover:bg-red-700 text-white font-bold rounded-lg transition-all shadow-xl uppercase text-sm tracking-widest">
-                        Abrir Formulario de Reportes
-                    </button>
+            
+            <div id="seccionReportes">
+                <div class="flex flex-col md:flex-row items-center gap-12">
+                    <div class="w-full md:w-1/2">
+                        <h1 class="font-reporte text-6xl md:text-7xl text-red-700 mb-2 uppercase">ALTROM <br> VENEZUELA <br> REPORTES</h1>
+                        <h2 class="text-2xl tracking-[0.6em] font-light text-orange-altrom mb-10 uppercase italic">Logística</h2>
+                        <button onclick="document.getElementById('modalForm').classList.remove('hidden')" 
+                                class="px-8 py-4 bg-orange-altrom hover:bg-red-700 text-white font-bold rounded-lg transition-all shadow-xl uppercase text-sm tracking-widest">
+                            Abrir Formulario de Reportes
+                        </button>
+                    </div>
+
+                    <div class="w-full md:w-1/2 h-[450px] rounded-[2rem] overflow-hidden shadow-2xl relative border-4 border-white bg-gray-200">
+                        <div id="carrusel-container" class="relative w-full h-full">
+                            <img src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80" class="active">
+                            <img src="https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&q=80">
+                            <img src="https://images.unsplash.com/photo-1580674684081-7617fbf3d745?auto=format&fit=crop&q=80">
+                        </div>
+                    </div>
                 </div>
 
-                <div class="w-full md:w-1/2 h-[450px] rounded-[2rem] overflow-hidden shadow-2xl relative border-4 border-white bg-gray-200">
-                    <div id="carrusel-container" class="relative w-full h-full">
-                        <img src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80" class="active">
-                        <img src="https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&q=80">
-                        <img src="https://images.unsplash.com/photo-1580674684081-7617fbf3d745?auto=format&fit=crop&q=80">
+                <div class="mt-20 border-t pt-10">
+                    <h3 class="font-reporte text-3xl text-red-700 mb-6 uppercase italic">Historial de Reportes</h3>
+                    <div class="overflow-x-auto bg-white rounded-2xl shadow-sm border">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-gray-50 text-orange-700 uppercase font-bold">
+                                <tr>
+                                    <th class="p-4">Estado</th>
+                                    <th class="p-4">Fecha</th>
+                                    <th class="p-4">Cliente</th>
+                                    <th class="p-4">Factura</th>
+                                    <th class="p-4">Chofer</th>
+                                    <th class="p-4 text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaReportes"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
 
-            <div class="mt-20 border-t pt-10">
-                <h3 class="font-reporte text-3xl text-red-700 mb-6 uppercase italic">Historial de Reportes</h3>
-                <div class="overflow-x-auto bg-white rounded-2xl shadow-sm border">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-gray-50 text-orange-700 uppercase font-bold">
-                            <tr>
-                                <th class="p-4">Estado</th>
-                                <th class="p-4">Fecha</th>
-                                <th class="p-4">Cliente</th>
-                                <th class="p-4">Factura</th>
-                                <th class="p-4">Chofer</th>
-                                <th class="p-4 text-center">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tablaReportes"></tbody>
-                    </table>
+            <div id="seccionPedidos" class="hidden-content">
+                <div class="mb-10">
+                    <h1 class="font-reporte text-5xl text-red-700 uppercase">Control de <br> Pedidos y Facturación</h1>
+                    <p class="text-orange-altrom font-bold uppercase text-[10px] tracking-[0.3em] mt-2 italic">Sincronizado con Logística Drive</p>
+                </div>
+
+                <div class="bg-white rounded-3xl shadow-sm border p-6">
+                    <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+                        <div class="relative w-full md:w-96">
+                            <input type="text" placeholder="Buscar Factura o Cliente..." class="w-full p-3 pl-10 rounded-xl bg-gray-50 border border-gray-100 text-sm outline-none focus:ring-2 focus:ring-orange-500 uppercase">
+                            <span class="absolute left-3 top-3.5 opacity-30">🔍</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase">
+                            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                            Conexión activa con Drive
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-gray-50 text-gray-500 uppercase font-bold">
+                                <tr>
+                                    <th class="p-4">N° Factura / Nota</th>
+                                    <th class="p-4">Fecha Emisión</th>
+                                    <th class="p-4">Cliente</th>
+                                    <th class="p-4 text-center">Estatus</th>
+                                    <th class="p-4 text-center">Archivo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaPedidos">
+                                <tr class="border-t hover:bg-gray-50">
+                                    <td class="p-4 font-bold">F-45902</td>
+                                    <td class="p-4">10/05/2026</td>
+                                    <td class="p-4 uppercase font-bold text-red-700 text-[10px]">WALMART MARACAY</td>
+                                    <td class="p-4 text-center">
+                                        <span class="px-3 py-1 bg-blue-50 text-blue-600 rounded-full font-bold text-[9px]">EN DESPACHO</span>
+                                    </td>
+                                    <td class="p-4 text-center">
+                                        <button class="bg-red-700 text-white px-3 py-1 rounded text-[9px] font-bold uppercase italic">Ver Pedido</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -163,13 +221,38 @@
         const SUPABASE_KEY = 'sb_publishable_pd-qR6M790mUr3PQaY_jmQ_yEfW5dyD';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        // NAVEGACIÓN ENTRE TABS
+        function switchTab(tabId) {
+            const seccionReportes = document.getElementById('seccionReportes');
+            const seccionPedidos = document.getElementById('seccionPedidos');
+            const btnReportes = document.getElementById('btnTabReportes');
+            const btnPedidos = document.getElementById('btnTabPedidos');
+
+            if (tabId === 'tabReportes') {
+                seccionReportes.classList.remove('hidden-content');
+                seccionPedidos.classList.add('hidden-content');
+                btnReportes.classList.add('tab-active');
+                btnReportes.classList.remove('text-gray-400');
+                btnPedidos.classList.remove('tab-active');
+                btnPedidos.classList.add('text-gray-400');
+            } else {
+                seccionReportes.classList.add('hidden-content');
+                seccionPedidos.classList.remove('hidden-content');
+                btnPedidos.classList.add('tab-active');
+                btnPedidos.classList.remove('text-gray-400');
+                btnReportes.classList.remove('tab-active');
+                btnReportes.classList.add('text-gray-400');
+            }
+        }
+
+        // ACCESO Y AUTH
         function verificarClave() {
             const pass = document.getElementById('inputClaveMaestra').value;
             if (pass === CLAVE_FIJA) {
                 document.getElementById('pantallaClave').classList.add('hidden-content');
                 checkSession();
             } else {
-                alert("Clave maestra incorrecta. Solicítala al Jefe de Despacho.");
+                alert("Clave maestra incorrecta.");
             }
         }
 
@@ -183,7 +266,6 @@
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             const msg = document.getElementById('authMsg');
-            msg.innerText = "Validando...";
             const { error } = await _supabase.auth.signInWithPassword({ email, password });
             if (error) { msg.innerText = "Error: " + error.message; }
             else { mostrarWeb(); }
@@ -209,25 +291,24 @@
             location.reload();
         }
 
+        // REPORTES
         async function cargarReportes() {
             const { data, error } = await _supabase.from('reportes_altrom').select('*').order('created_at', { ascending: false });
             if (data) {
                 const tabla = document.getElementById('tablaReportes');
                 tabla.innerHTML = data.map(r => {
                     const esListo = r.estado === 'LISTO';
-                    return `
-                        <tr class="border-t hover:bg-orange-50 transition-colors">
-                            <td class="p-4 font-bold ${esListo ? 'text-green-600' : 'text-orange-500'}">${esListo ? '✓ LISTO' : 'PENDIENTE'}</td>
-                            <td class="p-4">${r.fecha}</td>
-                            <td class="p-4 font-bold uppercase text-red-700">${r.cliente}</td>
-                            <td class="p-4 text-gray-500">${r.factura}</td>
-                            <td class="p-4 uppercase">${r.chofer}</td>
-                            <td class="p-4 flex gap-2 justify-center">
-                                <button onclick='reexportarPDF(${JSON.stringify(r)})' class="bg-gray-800 text-white px-2 py-1 rounded text-[9px] font-bold">PDF</button>
-                                ${!esListo ? `<button onclick='generarNC(${JSON.stringify(r)})' class="bg-red-600 text-white px-2 py-1 rounded text-[9px] font-bold uppercase">NC</button>` : ''}
-                            </td>
-                        </tr>
-                    `;
+                    return `<tr class="border-t hover:bg-orange-50 transition-colors">
+                        <td class="p-4 font-bold ${esListo ? 'text-green-600' : 'text-orange-500'}">${esListo ? '✓ LISTO' : 'PENDIENTE'}</td>
+                        <td class="p-4">${r.fecha}</td>
+                        <td class="p-4 font-bold uppercase text-red-700">${r.cliente}</td>
+                        <td class="p-4 text-gray-500">${r.factura}</td>
+                        <td class="p-4 uppercase">${r.chofer}</td>
+                        <td class="p-4 flex gap-2 justify-center">
+                            <button onclick='reexportarPDF(${JSON.stringify(r)})' class="bg-gray-800 text-white px-2 py-1 rounded text-[9px] font-bold">PDF</button>
+                            ${!esListo ? `<button onclick='generarNC(${JSON.stringify(r)})' class="bg-red-600 text-white px-2 py-1 rounded text-[9px] font-bold uppercase">NC</button>` : ''}
+                        </td>
+                    </tr>`;
                 }).join('');
             }
         }
@@ -258,28 +339,20 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             const esNC = titulo === "NOTA DE CRÉDITO";
-            
-            // AGREGAR LOGO AL PDF
             doc.addImage('logo.png', 'PNG', 15, 8, 25, 25);
-            
             doc.setFont("helvetica", "bold");
             doc.setTextColor(esNC ? 0 : 220, esNC ? 0 : 38, esNC ? 0 : 38);
             doc.text(esNC ? "NOTA DE CRÉDITO" : "ALTROM VENEZUELA - REPORTE DE LOGÍSTICA", 105, 20, { align: "center" });
-            
             doc.setFontSize(10); doc.setTextColor(0, 0, 0);
             doc.text(`Nota/Factura: ${data.factura}`, 20, 38);
             doc.text(`Fecha: ${data.fecha}`, 150, 38);
             doc.text(`Cliente: ${data.cliente.toUpperCase()}`, 20, 48);
-            doc.text(`Ruta: ${data.ruta ? data.ruta.toUpperCase() : 'N/A'}`, 20, 58);
-
             doc.autoTable({ startY: 68, head: [[esNC ? 'DESCRIPCIÓN' : 'TIPO DE MERCANCÍA', 'BULTOS', 'UNIDADES', 'PESO (KG)']], body: productos, theme: esNC ? 'grid' : 'striped', headStyles: { fillColor: esNC ? [40, 40, 40] : [240, 84, 35] } });
             const finalY = doc.lastAutoTable.finalY + 15;
             doc.setFont("helvetica", "bold"); doc.text(esNC ? "MOTIVO DE CRÉDITO:" : "DETALLES DE NOVEDAD:", 20, finalY);
             doc.setFont("helvetica", "normal"); doc.text(data.novedad || "Sin detalles adicionales.", 20, finalY + 10, { maxWidth: 170 });
             doc.setFont("helvetica", "bold"); doc.text(`CHOFER / VENDEDOR: ${data.chofer.toUpperCase()}`, 20, finalY + 35);
-            doc.setDrawColor(200, 200, 200);
-            doc.line(20, finalY + 60, 80, finalY + 60); doc.text(esNC ? "AUTORIZADO ADM" : "FIRMA CONFORMIDAD", 20, finalY + 65);
-            doc.line(130, finalY + 60, 190, finalY + 60); doc.text(esNC ? "LOGÍSTICA" : "DESPACHO / ALMACÉN", 130, finalY + 65);
+            doc.line(20, finalY + 60, 80, finalY + 60); doc.text("FIRMA", 20, finalY + 65);
             doc.save(`${titulo}_${data.factura}.pdf`);
         }
 
