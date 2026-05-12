@@ -212,7 +212,6 @@
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // CONFIGURACIÓN DRIVE
-        const SHEET_ID = '15Cq_nOnGst753kQG_6B36G8_Y7013G4h';
         const GID_HOJA = '681500081';
 
         // NAVEGACIÓN
@@ -243,8 +242,8 @@
         // LÓGICA DE DRIVE (PEDIDOS REALES)
         async function cargarPedidosExcel() {
             const tabla = document.getElementById('tablaPedidos');
-            // URL Directa usando el GID para mayor precisión
-            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID_HOJA}`;
+            // USA EL LINK DE PUBLICACIÓN DIRECTO PARA EVITAR ERRORES DE PERMISOS
+            const url = `https://docs.google.com/spreadsheets/d/e/2PACX-1vSvZJT6gOB1VAnEwO9Px1FDI_Eyii3lmvZEIqiajaH_pO6dPaLL8cB6d_ECpRiwlnYHLV944tTt0FwB/pub?gid=${GID_HOJA}&output=csv`;
             
             try {
                 const respuesta = await fetch(url);
