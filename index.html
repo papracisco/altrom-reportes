@@ -213,7 +213,7 @@
 
         // CONFIGURACIÓN DRIVE
         const SHEET_ID = '15Cq_nOnGst753kQG_6B36G8_Y7013G4h';
-        const SHEET_NAME = 'Registro de Facturas 45700 - 45800';
+        const GID_HOJA = '681500081';
 
         // NAVEGACIÓN
         function switchTab(tabId) {
@@ -243,19 +243,26 @@
         // LÓGICA DE DRIVE (PEDIDOS REALES)
         async function cargarPedidosExcel() {
             const tabla = document.getElementById('tablaPedidos');
-            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
+            // URL Directa usando el GID para mayor precisión
+            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID_HOJA}`;
             
             try {
                 const respuesta = await fetch(url);
+                if (!respuesta.ok) throw new Error('Error al conectar');
                 const texto = await respuesta.text();
+                
+                // Dividir filas y saltar encabezado
                 const filas = texto.split('\n').slice(1);
                 
                 let html = '';
                 filas.forEach(linea => {
-                    const c = linea.split('","').map(x => x.replace(/"/g, ''));
+                    // Regex para separar por comas respetando comas dentro de comillas
+                    const c = linea.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(x => x.replace(/"/g, '').trim());
+                    
                     if (c.length > 2) {
                         const status = c[3] ? c[3].toUpperCase() : 'PENDIENTE';
-                        const colorStatus = status === 'ENTREGADO' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600';
+                        const colorStatus = status.includes('ENTREGADO') ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600';
+                        const hasLink = c[4] && c[4].includes('http');
                         
                         html += `
                             <tr class="border-t hover:bg-gray-50 transition-all">
@@ -266,7 +273,10 @@
                                     <span class="px-3 py-1 ${colorStatus} rounded-full font-bold text-[9px]">${status}</span>
                                 </td>
                                 <td class="p-4 text-center">
-                                    <button onclick="window.open('${c[4]}', '_blank')" class="bg-red-700 text-white px-3 py-1 rounded text-[9px] font-bold uppercase italic ${c[4] ? '' : 'opacity-20 pointer-events-none'}">Ver Pedido</button>
+                                    <button onclick="window.open('${c[4]}', '_blank')" 
+                                            class="bg-red-700 text-white px-3 py-1 rounded text-[9px] font-bold uppercase italic ${hasLink ? '' : 'opacity-20 pointer-events-none'}">
+                                        Ver Pedido
+                                    </button>
                                 </td>
                             </tr>`;
                     }
@@ -274,7 +284,7 @@
                 tabla.innerHTML = html || '<tr><td colspan="5" class="p-4 text-center">No se encontraron datos en la hoja.</td></tr>';
             } catch (e) {
                 console.error(e);
-                tabla.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500 font-bold">Error al conectar con Drive. Verifica que el archivo esté publicado.</td></tr>';
+                tabla.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500 font-bold">Error 404: Verifica que el archivo esté "Publicado en la web" (Archivo > Compartir > Publicar).</td></tr>';
             }
         }
 
