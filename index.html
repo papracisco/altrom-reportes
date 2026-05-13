@@ -211,10 +211,8 @@
         const SUPABASE_KEY = 'sb_publishable_pd-qR6M790mUr3PQaY_jmQ_yEfW5dyD';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // CONFIGURACIÓN DRIVE
         const GID_HOJA = '681500081';
 
-        // NAVEGACIÓN
         function switchTab(tabId) {
             const seccionReportes = document.getElementById('seccionReportes');
             const seccionPedidos = document.getElementById('seccionPedidos');
@@ -239,41 +237,40 @@
             }
         }
 
-        // LÓGICA DE DRIVE (PEDIDOS REALES)
         async function cargarPedidosExcel() {
             const tabla = document.getElementById('tablaPedidos');
-            // USA EL LINK DE PUBLICACIÓN DIRECTO PARA EVITAR ERRORES DE PERMISOS
             const url = `https://docs.google.com/spreadsheets/d/e/2PACX-1vSvZJT6gOB1VAnEwO9Px1FDI_Eyii3lmvZEIqiajaH_pO6dPaLL8cB6d_ECpRiwlnYHLV944tTt0FwB/pub?gid=${GID_HOJA}&output=csv`;
             
             try {
                 const respuesta = await fetch(url);
                 if (!respuesta.ok) throw new Error('Error al conectar');
                 const texto = await respuesta.text();
-                
-                // Dividir filas y saltar encabezado
                 const filas = texto.split('\n').slice(1);
                 
                 let html = '';
                 filas.forEach(linea => {
-                    // Regex para separar por comas respetando comas dentro de comillas
                     const c = linea.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(x => x.replace(/"/g, '').trim());
                     
-                    if (c.length > 2) {
-                        const status = c[3] ? c[3].toUpperCase() : 'PENDIENTE';
-                        const colorStatus = status.includes('ENTREGADO') ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600';
-                        const hasLink = c[4] && c[4].includes('http');
+                    if (c.length >= 5) {
+                        // ÍNDICES SEGÚN TU EXCEL:
+                        // 0: Factura, 1: Cliente, 2: Monto, 3: Fecha, 4: Estado, 5: Link (Columna F)
+                        const status = c[4] ? c[4].toUpperCase() : 'PENDIENTE';
+                        const colorStatus = status.includes('PAGADO') ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600';
+                        
+                        const linkArchivo = c[5] || '';
+                        const tieneLink = linkArchivo.includes('http');
                         
                         html += `
                             <tr class="border-t hover:bg-gray-50 transition-all">
                                 <td class="p-4 font-bold text-gray-700">${c[0] || 'N/A'}</td>
-                                <td class="p-4 text-gray-400">${c[1] || ''}</td>
-                                <td class="p-4 font-bold uppercase text-red-700 text-[10px]">${c[2] || ''}</td>
+                                <td class="p-4 text-gray-400">${c[3] || ''}</td>
+                                <td class="p-4 font-bold uppercase text-red-700 text-[10px]">${c[1] || ''}</td>
                                 <td class="p-4 text-center">
                                     <span class="px-3 py-1 ${colorStatus} rounded-full font-bold text-[9px]">${status}</span>
                                 </td>
                                 <td class="p-4 text-center">
-                                    <button onclick="window.open('${c[4]}', '_blank')" 
-                                            class="bg-red-700 text-white px-3 py-1 rounded text-[9px] font-bold uppercase italic ${hasLink ? '' : 'opacity-20 pointer-events-none'}">
+                                    <button onclick="if('${linkArchivo}') window.open('${linkArchivo}', '_blank')" 
+                                            class="bg-red-700 text-white px-3 py-1 rounded text-[9px] font-bold uppercase italic ${tieneLink ? 'opacity-100' : 'opacity-20 pointer-events-none'}">
                                         Ver Pedido
                                     </button>
                                 </td>
@@ -283,7 +280,7 @@
                 tabla.innerHTML = html || '<tr><td colspan="5" class="p-4 text-center">No se encontraron datos en la hoja.</td></tr>';
             } catch (e) {
                 console.error(e);
-                tabla.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500 font-bold">Error 404: Verifica que el archivo esté "Publicado en la web" (Archivo > Compartir > Publicar).</td></tr>';
+                tabla.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500 font-bold">Error 404: Verifica que el archivo esté publicado.</td></tr>';
             }
         }
 
@@ -296,7 +293,6 @@
             });
         }
 
-        // ACCESO
         function verificarClave() {
             const pass = document.getElementById('inputClaveMaestra').value;
             if (pass === CLAVE_FIJA) {
@@ -342,7 +338,6 @@
             location.reload();
         }
 
-        // REPORTES
         async function cargarReportes() {
             const { data, error } = await _supabase.from('reportes_altrom').select('*').order('created_at', { ascending: false });
             if (data) {
