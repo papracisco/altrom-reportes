@@ -55,6 +55,7 @@
             <div class="flex items-center gap-6">
                 <img src="logo.png" alt="Altrom Logo" class="h-10 w-auto object-contain">
                 <button onclick="handleLogout()" class="text-[9px] font-bold text-gray-400 hover:text-red-600 uppercase transition-colors tracking-widest">Cerrar Sesión</button>
+                <button onclick="abrirModalAdmin()" id="btnRolIndicator" class="text-[9px] font-bold bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full uppercase transition-all tracking-widest border border-gray-200">Modo Usuario</button>
             </div>
             <div class="text-right">
                 <p class="font-bold text-orange-altrom text-sm uppercase">José Francisco Parada</p>
@@ -137,11 +138,10 @@
                                     <th class="p-4">Fecha Emisión</th>
                                     <th class="p-4">Cliente</th>
                                     <th class="p-4 text-center">Estatus</th>
-                                    <th class="p-4 text-center">Archivo</th>
                                 </tr>
                             </thead>
                             <tbody id="tablaPedidos">
-                                <tr><td colspan="5" class="p-10 text-center text-gray-400 font-bold uppercase tracking-widest">Cargando datos desde Drive...</td></tr>
+                                <tr><td colspan="4" class="p-10 text-center text-gray-400 font-bold uppercase tracking-widest">Cargando datos desde Drive...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -205,14 +205,74 @@
         </div>
     </div>
 
+    <div id="modalAdmin" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm p-6 text-center">
+            <h3 class="text-lg font-bold text-gray-800 uppercase mb-2">Seguridad Web Altrom</h3>
+            <p class="text-xs text-gray-400 mb-4">Introduce la clave para activar las herramientas de administración.</p>
+            <input type="password" id="inputClaveAdmin" placeholder="Clave de Administración" class="w-full p-3 rounded-xl bg-gray-100 border-none outline-none focus:ring-2 focus:ring-orange-500 mb-4 text-center font-bold text-sm">
+            <div class="flex gap-2">
+                <button onclick="document.getElementById('modalAdmin').classList.add('hidden')" class="flex-1 py-2 bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase">Cancelar</button>
+                <button onclick="verificarPermisosAdmin()" class="flex-1 py-2 bg-orange-altrom text-white rounded-xl text-xs font-bold uppercase">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const CLAVE_FIJA = "Altrom2024"; 
+        const CLAVE_ADMIN = "administracionwebdealtromIA";
+        let esAdmin = false; // Estado global del rol
+        let datosPedidosCache = []; // Almacenar datos limpios de Drive
+
         const SUPABASE_URL = 'https://ahubtenryiezbymprtra.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_pd-qR6M790mUr3PQaY_jmQ_yEfW5dyD';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const GID_HOJA = '681500081';
 
+        // GESTIÓN DE ROLES ADMINISTRATIVOS
+        function abrirModalAdmin() {
+            if(esAdmin) {
+                esAdmin = false;
+                document.getElementById('btnRolIndicator').innerText = "Modo Usuario";
+                document.getElementById('btnRolIndicator').className = "text-[9px] font-bold bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full uppercase transition-all tracking-widest border border-gray-200";
+                renderizarPedidosTabla();
+                cargarReportes();
+            } else {
+                document.getElementById('inputClaveAdmin').value = "";
+                document.getElementById('modalAdmin').classList.remove('hidden');
+            }
+        }
+
+        function verificarPermisosAdmin() {
+            const pass = document.getElementById('inputClaveAdmin').value;
+            if(pass === CLAVE_ADMIN) {
+                esAdmin = true;
+                document.getElementById('modalAdmin').classList.add('hidden');
+                document.getElementById('btnRolIndicator').innerText = "Modo Administrador ✓";
+                document.getElementById('btnRolIndicator').className = "text-[9px] font-bold bg-orange-altrom text-white px-3 py-1.5 rounded-full uppercase transition-all tracking-widest shadow-md";
+                renderizarPedidosTabla();
+                cargarReportes();
+            } else {
+                alert("Clave de administración incorrecta.");
+            }
+        }
+
+        function cambiarEstatusPedido(index, nuevoEstatus) {
+            datosPedidosCache[index][4] = nuevoEstatus;
+            console.log(`Fila ${index + 1} actualizada localmente a: ${nuevoEstatus}`);
+            renderizarPedidosTabla();
+            // Aquí puedes conectar en fases posteriores un webhook o AppScript para reflejarlo en el Drive
+        }
+
+        async function eliminarReporte(id) {
+            if(confirm("¿Estás seguro de que deseas eliminar este reporte de forma permanente?")) {
+                const { error } = await _supabase.from('reportes_altrom').delete().eq('id', id);
+                if (error) { alert("Error al eliminar: " + error.message); }
+                else { cargarReportes(); }
+            }
+        }
+
+        // NAVEGACIÓN
         function switchTab(tabId) {
             const seccionReportes = document.getElementById('seccionReportes');
             const seccionPedidos = document.getElementById('seccionPedidos');
@@ -222,14 +282,14 @@
             if (tabId === 'tabReportes') {
                 seccionReportes.classList.remove('hidden-content');
                 seccionPedidos.classList.add('hidden-content');
-                btnReportes.classList.add('tab-active');
+                btnReportes.add('tab-active');
                 btnReportes.classList.remove('text-gray-400');
                 btnPedidos.classList.remove('tab-active');
                 btnPedidos.classList.add('text-gray-400');
             } else {
                 seccionReportes.classList.add('hidden-content');
                 seccionPedidos.classList.remove('hidden-content');
-                btnPedidos.classList.add('tab-active');
+                btnPedidos.add('tab-active');
                 btnPedidos.classList.remove('text-gray-400');
                 btnReportes.classList.remove('tab-active');
                 btnReportes.classList.add('text-gray-400');
@@ -237,6 +297,7 @@
             }
         }
 
+        // LOGÍSTICA DRIVE (PEDIDOS REESTRUCTURADOS)
         async function cargarPedidosExcel() {
             const tabla = document.getElementById('tablaPedidos');
             const url = `https://docs.google.com/spreadsheets/d/e/2PACX-1vSvZJT6gOB1VAnEwO9Px1FDI_Eyii3lmvZEIqiajaH_pO6dPaLL8cB6d_ECpRiwlnYHLV944tTt0FwB/pub?gid=${GID_HOJA}&output=csv`;
@@ -247,41 +308,50 @@
                 const texto = await respuesta.text();
                 const filas = texto.split('\n').slice(1);
                 
-                let html = '';
+                datosPedidosCache = [];
                 filas.forEach(linea => {
                     const c = linea.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(x => x.replace(/"/g, '').trim());
-                    
-                    if (c.length >= 5) {
-                        // ÍNDICES SEGÚN TU EXCEL:
-                        // 0: Factura, 1: Cliente, 2: Monto, 3: Fecha, 4: Estado, 5: Link (Columna F)
-                        const status = c[4] ? c[4].toUpperCase() : 'PENDIENTE';
-                        const colorStatus = status.includes('PAGADO') ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600';
-                        
-                        const linkArchivo = c[5] || '';
-                        const tieneLink = linkArchivo.includes('http');
-                        
-                        html += `
-                            <tr class="border-t hover:bg-gray-50 transition-all">
-                                <td class="p-4 font-bold text-gray-700">${c[0] || 'N/A'}</td>
-                                <td class="p-4 text-gray-400">${c[3] || ''}</td>
-                                <td class="p-4 font-bold uppercase text-red-700 text-[10px]">${c[1] || ''}</td>
-                                <td class="p-4 text-center">
-                                    <span class="px-3 py-1 ${colorStatus} rounded-full font-bold text-[9px]">${status}</span>
-                                </td>
-                                <td class="p-4 text-center">
-                                    <button onclick="if('${linkArchivo}') window.open('${linkArchivo}', '_blank')" 
-                                            class="bg-red-700 text-white px-3 py-1 rounded text-[9px] font-bold uppercase italic ${tieneLink ? 'opacity-100' : 'opacity-20 pointer-events-none'}">
-                                        Ver Pedido
-                                    </button>
-                                </td>
-                            </tr>`;
-                    }
+                    if (c.length >= 5) { datosPedidosCache.push(c); }
                 });
-                tabla.innerHTML = html || '<tr><td colspan="5" class="p-4 text-center">No se encontraron datos en la hoja.</td></tr>';
+                
+                renderizarPedidosTabla();
             } catch (e) {
                 console.error(e);
-                tabla.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500 font-bold">Error 404: Verifica que el archivo esté publicado.</td></tr>';
+                tabla.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500 font-bold">Error 404: No se pudo sincronizar la información del Drive.</td></tr>';
             }
+        }
+
+        function renderizarPedidosTabla() {
+            const tabla = document.getElementById('tablaPedidos');
+            let html = '';
+            
+            datosPedidosCache.forEach((c, index) => {
+                const status = c[4] ? c[4].toUpperCase() : 'PENDIENTE';
+                const colorStatus = status.includes('PAGADO') || status.includes('ENTREGADO') ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600';
+                
+                let celdaEstatus = '';
+                if(esAdmin) {
+                    // El Administrador puede modificar los flujos de estatus de las cargas
+                    celdaEstatus = `
+                        <select onchange="cambiarEstatusPedido(${index}, this.value)" class="text-[10px] font-bold uppercase p-1.5 rounded-lg border bg-white focus:ring-1 focus:ring-orange-500 outline-none text-gray-700">
+                            <option value="PENDIENTE" ${status === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
+                            <option value="ENTREGADO" ${status === 'ENTREGADO' ? 'selected' : ''}>ENTREGADO</option>
+                            <option value="PAGADO" ${status === 'PAGADO' ? 'selected' : ''}>PAGADO</option>
+                        </select>`;
+                } else {
+                    celdaEstatus = `<span class="px-3 py-1 ${colorStatus} rounded-full font-bold text-[9px]">${status}</span>`;
+                }
+
+                html += `
+                    <tr class="border-t hover:bg-gray-50 transition-all">
+                        <td class="p-4 font-bold text-gray-700">${c[0] || 'N/A'}</td>
+                        <td class="p-4 text-gray-400">${c[3] || ''}</td>
+                        <td class="p-4 font-bold uppercase text-red-700 text-[10px]">${c[1] || ''}</td>
+                        <td class="p-4 text-center">${celdaEstatus}</td>
+                    </tr>`;
+            });
+            
+            tabla.innerHTML = html || '<tr><td colspan="4" class="p-4 text-center">No se encontraron datos en la hoja operativa.</td></tr>';
         }
 
         function filtrarPedidos() {
@@ -293,6 +363,7 @@
             });
         }
 
+        // SEGURIDAD Y LOGEO
         function verificarClave() {
             const pass = document.getElementById('inputClaveMaestra').value;
             if (pass === CLAVE_FIJA) {
@@ -338,6 +409,7 @@
             location.reload();
         }
 
+        // CONTROL HISTORIAL DE REPORTES
         async function cargarReportes() {
             const { data, error } = await _supabase.from('reportes_altrom').select('*').order('created_at', { ascending: false });
             if (data) {
@@ -350,9 +422,10 @@
                         <td class="p-4 font-bold uppercase text-red-700">${r.cliente}</td>
                         <td class="p-4 text-gray-500">${r.factura}</td>
                         <td class="p-4 uppercase">${r.chofer}</td>
-                        <td class="p-4 flex gap-2 justify-center">
+                        <td class="p-4 flex gap-2 justify-center items-center">
                             <button onclick='reexportarPDF(${JSON.stringify(r)})' class="bg-gray-800 text-white px-2 py-1 rounded text-[9px] font-bold">PDF</button>
                             ${!esListo ? `<button onclick='generarNC(${JSON.stringify(r)})' class="bg-red-600 text-white px-2 py-1 rounded text-[9px] font-bold uppercase">NC</button>` : ''}
+                            ${esAdmin ? `<button onclick='eliminarReporte(${r.id})' class="bg-black text-white px-2 py-1 rounded text-[9px] font-bold uppercase transition-all hover:bg-red-800">X</button>` : ''}
                         </td>
                     </tr>`;
                 }).join('');
