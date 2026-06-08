@@ -25,7 +25,7 @@
 </head>
 <body class="bg-gray-50 text-gray-800">
 
-    <div id="pantallaClave" class="fixed inset-0 z-[100] flex items-center justify-center bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80');">
+    <div id="pantallaClave" class="fixed inset-0 z-[100] flex items-center justify-center bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop& digital&q=80');">
         <div class="absolute inset-0 bg-black/60"></div>
         <div class="glass p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md relative text-center border border-white/20">
             <img src="logo.png" alt="Altrom Logo" class="h-20 w-auto mx-auto mb-6 object-contain">
@@ -237,7 +237,6 @@
         const SUPABASE_KEY = 'sb_publishable_pd-qR6M790mUr3PQaY_jmQ_yEfW5dyD';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // CONFIGURACIÓN DEL NUEVO ENLACE DIRECTO DESDE TU CUENTA DE DRIVE (.CSV)
         const URL_EXCEL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQk60msZmpo6nkev4Bt1sBuh_7Isy-K96-cscFKmm9QUdt_FJIu0Npu17LWnhgqcg/pub?output=csv";
 
         function alternarModoAdmin() {
@@ -305,7 +304,6 @@
             }
         }
 
-        // CONTROL LOGÍSTICA EXCEL EXTRAÍDO MEDIANTE LAS CELDAS EXACTAS (Mapeo Completo)
         async function cargarPedidosExcel() {
             const tabla = document.getElementById('tablaPedidos');
             
@@ -333,17 +331,23 @@
             let html = '';
             
             cacheFilasDrive.forEach((c) => {
-                // EXTRACCIÓN UTILIZANDO LOS ÍNDICES DE MATRIZ CORRESPONDIENTES A LAS LETRAS SOLICITADAS
-                const nroDocumento = c[7] || 'N/A'; // Celda H
-                const cliente = c[5] || 'N/A';      // Celda F
-                const ruta = c[3] || 'N/A';         // Celda D (Vendedor)
-                const fechaEmision = c[1] || '';   // Celda B
-                const fechaVenc = c[2] || '';      // Celda C
-                const montoBs = c[14] || '0.00';    // Celda O
-                const montoUSD = c[15] || '0.00';   // Celda P
+                const nroDocumento = c[7] || 'N/A'; 
+                const cliente = c[5] || 'N/A';      
+                const ruta = c[3] || 'N/A';         
+                const fechaEmision = c[1] || '';   
+                const fechaVenc = c[2] || '';      
+                const montoBs = c[14] || '0.00';    
+                const montoUSD = c[15] || '0.00';   
 
                 const status = localStorage.getItem(`status_altrom_${nroDocumento}`) || 'PENDIENTE';
-                const colorStatus = status.includes('PAGADO') || status.includes('ENTREGADO') ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600';
+                
+                // CONDICIONAL LOGICIAL PARA EL COLOR DEL BADGE DE ESTATUS (ANULADA EN ROJO)
+                let colorStatus = 'bg-blue-50 text-blue-600';
+                if (status === 'ENTREGADO') {
+                    colorStatus = 'bg-green-50 text-green-600';
+                } else if (status === 'ANULADA') {
+                    colorStatus = 'bg-red-50 text-red-600';
+                }
                 
                 let renderEstatus = '';
                 if (esAdmin) {
@@ -351,7 +355,7 @@
                         <select onchange="modificarEstatusLocal('${nroDocumento}', this.value)" class="text-[10px] font-bold p-1 rounded-md border bg-white focus:ring-1 focus:ring-orange-500 outline-none text-gray-700 uppercase">
                             <option value="PENDIENTE" ${status === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
                             <option value="ENTREGADO" ${status === 'ENTREGADO' ? 'selected' : ''}>ENTREGADO</option>
-                            <option value="PAGADO" ${status === 'PAGADO' ? 'selected' : ''}>PAGADO</option>
+                            <option value="ANULADA" ${status === 'ANULADA' ? 'selected' : ''}>ANULADA</option>
                         </select>`;
                 } else {
                     renderEstatus = `<span class="px-3 py-1 ${colorStatus} rounded-full font-bold text-[9px]">${status}</span>`;
