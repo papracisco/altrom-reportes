@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Altrom Venezuela - Sistema Seguro</title>
-    <link class="h-20 w-auto mx-auto mb-6 object-contain" rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2343/2343894.png">
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2343/2343894.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -140,15 +140,18 @@
                         <table class="w-full text-left text-xs">
                             <thead class="bg-gray-50 text-gray-500 uppercase font-bold">
                                 <tr>
-                                    <th class="p-4">N° Factura / Nota</th>
-                                    <th class="p-4">Fecha Emisión</th>
+                                    <th class="p-4">N° Documento</th>
                                     <th class="p-4">Cliente</th>
+                                    <th class="p-4">Ruta</th>
+                                    <th class="p-4">Emisión</th>
+                                    <th class="p-4">Vencimiento</th>
+                                    <th class="p-4 text-right">Monto Bs</th>
+                                    <th class="p-4 text-right">Monto $</th>
                                     <th class="p-4 text-center">Estatus</th>
-                                    <th class="p-4 text-center">Archivo</th>
                                 </tr>
                             </thead>
                             <tbody id="tablaPedidos">
-                                <tr><td colspan="5" class="p-10 text-center text-gray-400 font-bold uppercase tracking-widest">Cargando datos desde Drive...</td></tr>
+                                <tr><td colspan="8" class="p-10 text-center text-gray-400 font-bold uppercase tracking-widest">Cargando datos maestros desde Drive...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -234,7 +237,8 @@
         const SUPABASE_KEY = 'sb_publishable_pd-qR6M790mUr3PQaY_jmQ_yEfW5dyD';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        const GID_HOJA = '681500081';
+        // CONFIGURACIÓN DEL NUEVO ENLACE DIRECTO DESDE TU CUENTA DE DRIVE (.CSV)
+        const URL_EXCEL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQk60msZmpo6nkev4Bt1sBuh_7Isy-K96-cscFKmm9QUdt_FJIu0Npu17LWnhgqcg/pub?output=csv";
 
         function alternarModoAdmin() {
             if (esAdmin) {
@@ -263,9 +267,9 @@
             }
         }
 
-        function modificarEstatusLocal(idx, valor) {
-            cacheFilasDrive[idx][4] = valor;
-            console.log(`Fila indexada ${idx} alterada a: ${valor}`);
+        function modificarEstatusLocal(idFactura, valor) {
+            localStorage.setItem(`status_altrom_${idFactura}`, valor);
+            console.log(`Estado guardado localmente para ${idFactura}: ${valor}`);
             procesarTablaPedidos();
         }
 
@@ -301,26 +305,26 @@
             }
         }
 
+        // CONTROL LOGÍSTICA EXCEL EXTRAÍDO MEDIANTE LAS CELDAS EXACTAS (Mapeo Completo)
         async function cargarPedidosExcel() {
             const tabla = document.getElementById('tablaPedidos');
-            const url = `https://docs.google.com/spreadsheets/d/e/2PACX-1vSvZJT6gOB1VAnEwO9Px1FDI_Eyii3lmvZEIqiajaH_pO6dPaLL8cB6d_ECpRiwlnYHLV944tTt0FwB/pub?gid=${GID_HOJA}&output=csv`;
             
             try {
-                const respuesta = await fetch(url);
-                if (!respuesta.ok) throw new Error('Error al conectar');
+                const respuesta = await fetch(URL_EXCEL_CSV);
+                if (!respuesta.ok) throw new Error('Error al conectar con la hoja publicada');
                 const texto = await respuesta.text();
                 const filas = texto.split('\n').slice(1);
                 
                 cacheFilasDrive = [];
                 filas.forEach(linea => {
                     const c = linea.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(x => x.replace(/"/g, '').trim());
-                    if (c.length >= 5) { cacheFilasDrive.push(c); }
+                    if (c.length >= 16) { cacheFilasDrive.push(c); }
                 });
                 
                 procesarTablaPedidos();
             } catch (e) {
                 console.error(e);
-                tabla.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500 font-bold">Error de sincronización. Verifica la publicación del Drive.</td></tr>';
+                tabla.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-red-500 font-bold">Error de sincronización con la nube de Google Drive.</td></tr>';
             }
         }
 
@@ -328,17 +332,23 @@
             const tabla = document.getElementById('tablaPedidos');
             let html = '';
             
-            cacheFilasDrive.forEach((c, index) => {
-                const status = c[4] ? c[4].toUpperCase() : 'PENDIENTE';
+            cacheFilasDrive.forEach((c) => {
+                // EXTRACCIÓN UTILIZANDO LOS ÍNDICES DE MATRIZ CORRESPONDIENTES A LAS LETRAS SOLICITADAS
+                const nroDocumento = c[7] || 'N/A'; // Celda H
+                const cliente = c[5] || 'N/A';      // Celda F
+                const ruta = c[3] || 'N/A';         // Celda D (Vendedor)
+                const fechaEmision = c[1] || '';   // Celda B
+                const fechaVenc = c[2] || '';      // Celda C
+                const montoBs = c[14] || '0.00';    // Celda O
+                const montoUSD = c[15] || '0.00';   // Celda P
+
+                const status = localStorage.getItem(`status_altrom_${nroDocumento}`) || 'PENDIENTE';
                 const colorStatus = status.includes('PAGADO') || status.includes('ENTREGADO') ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600';
-                
-                const linkArchivo = c[5] || '';
-                const tieneLink = linkArchivo.includes('http');
                 
                 let renderEstatus = '';
                 if (esAdmin) {
                     renderEstatus = `
-                        <select onchange="modificarEstatusLocal(${index}, this.value)" class="text-[10px] font-bold p-1 rounded-md border bg-white focus:ring-1 focus:ring-orange-500 outline-none text-gray-700 uppercase">
+                        <select onchange="modificarEstatusLocal('${nroDocumento}', this.value)" class="text-[10px] font-bold p-1 rounded-md border bg-white focus:ring-1 focus:ring-orange-500 outline-none text-gray-700 uppercase">
                             <option value="PENDIENTE" ${status === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
                             <option value="ENTREGADO" ${status === 'ENTREGADO' ? 'selected' : ''}>ENTREGADO</option>
                             <option value="PAGADO" ${status === 'PAGADO' ? 'selected' : ''}>PAGADO</option>
@@ -349,20 +359,18 @@
 
                 html += `
                     <tr class="border-t hover:bg-gray-50 transition-all">
-                        <td class="p-4 font-bold text-gray-700">${c[0] || 'N/A'}</td>
-                        <td class="p-4 text-gray-400">${c[3] || ''}</td>
-                        <td class="p-4 font-bold uppercase text-red-700 text-[10px]">${c[1] || ''}</td>
+                        <td class="p-4 font-bold text-gray-700">${nroDocumento}</td>
+                        <td class="p-4 font-bold uppercase text-red-700 text-[10px]">${cliente}</td>
+                        <td class="p-4 text-gray-500 uppercase">${ruta}</td>
+                        <td class="p-4 text-gray-400">${fechaEmision}</td>
+                        <td class="p-4 text-gray-400">${fechaVenc}</td>
+                        <td class="p-4 text-right font-medium">${montoBs}</td>
+                        <td class="p-4 text-right font-bold text-green-700">${montoUSD}</td>
                         <td class="p-4 text-center">${renderEstatus}</td>
-                        <td class="p-4 text-center">
-                            <button onclick="if('${linkArchivo}') window.open('${linkArchivo}', '_blank')" 
-                                    class="bg-red-700 text-white px-3 py-1 rounded text-[9px] font-bold uppercase italic ${tieneLink ? 'opacity-100' : 'opacity-20 pointer-events-none'}">
-                                Ver Pedido
-                            </button>
-                        </td>
                     </tr>`;
             });
             
-            tabla.innerHTML = html || '<tr><td colspan="5" class="p-4 text-center">No se encontraron registros.</td></tr>';
+            tabla.innerHTML = html || '<tr><td colspan="8" class="p-4 text-center">No se encontraron registros activos.</td></tr>';
         }
 
         function filtrarPedidos() {
@@ -374,7 +382,6 @@
             });
         }
 
-        // FUNCIÓN LÓGICA FILTRAR REPORTES EN TIEMPO REAL
         function filtrarReportes() {
             const input = document.getElementById('buscadorReportes').value.toUpperCase();
             const filas = document.querySelectorAll('#tablaReportes tr');
