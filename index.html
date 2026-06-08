@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Altrom Venezuela - Sistema Seguro</title>
-    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2343/2343894.png">
+    <link class="h-20 w-auto mx-auto mb-6 object-contain" rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2343/2343894.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -94,6 +94,12 @@
 
                 <div class="mt-20 border-t pt-10">
                     <h3 class="font-reporte text-3xl text-red-700 mb-6 uppercase italic">Historial de Reportes</h3>
+                    
+                    <div class="mb-4 relative w-full md:w-96">
+                        <input type="text" id="buscadorReportes" onkeyup="filtrarReportes()" placeholder="Buscar por Factura, Cliente o Chofer..." class="w-full p-3 pl-10 rounded-xl bg-gray-50 border border-gray-100 text-sm outline-none focus:ring-2 focus:ring-orange-500 uppercase">
+                        <span class="absolute left-3 top-3.5 opacity-30">🔍</span>
+                    </div>
+
                     <div class="overflow-x-auto bg-white rounded-2xl shadow-sm border">
                         <table class="w-full text-left text-xs">
                             <thead class="bg-gray-50 text-orange-700 uppercase font-bold">
@@ -221,8 +227,8 @@
     <script>
         const CLAVE_FIJA = "Altrom2024"; 
         const CLAVE_ADMIN = "administracionwebdealtromIA";
-        let esAdmin = false; // Estado de privilegios
-        let cacheFilasDrive = []; // Almacén local de datos del Sheets
+        let esAdmin = false; 
+        let cacheFilasDrive = []; 
 
         const SUPABASE_URL = 'https://ahubtenryiezbymprtra.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_pd-qR6M790mUr3PQaY_jmQ_yEfW5dyD';
@@ -230,7 +236,6 @@
 
         const GID_HOJA = '681500081';
 
-        // LÓGICA DE ROLES Y PRIVILEGIOS
         function alternarModoAdmin() {
             if (esAdmin) {
                 esAdmin = false;
@@ -272,7 +277,6 @@
             }
         }
 
-        // NAVEGACIÓN
         function switchTab(tabId) {
             const seccionReportes = document.getElementById('seccionReportes');
             const seccionPedidos = document.getElementById('seccionPedidos');
@@ -297,7 +301,6 @@
             }
         }
 
-        // CONTROL LOGÍSTICA DRIVE (CONSERVANDO ESTRUCTURA DE 6 COLUMNAS)
         async function cargarPedidosExcel() {
             const tabla = document.getElementById('tablaPedidos');
             const url = `https://docs.google.com/spreadsheets/d/e/2PACX-1vSvZJT6gOB1VAnEwO9Px1FDI_Eyii3lmvZEIqiajaH_pO6dPaLL8cB6d_ECpRiwlnYHLV944tTt0FwB/pub?gid=${GID_HOJA}&output=csv`;
@@ -371,7 +374,16 @@
             });
         }
 
-        // SEGURIDAD DE ACCESO
+        // FUNCIÓN LÓGICA FILTRAR REPORTES EN TIEMPO REAL
+        function filtrarReportes() {
+            const input = document.getElementById('buscadorReportes').value.toUpperCase();
+            const filas = document.querySelectorAll('#tablaReportes tr');
+            filas.forEach(f => {
+                const texto = f.innerText.toUpperCase();
+                f.style.display = texto.includes(input) ? '' : 'none';
+            });
+        }
+
         function verificarClave() {
             const pass = document.getElementById('inputClaveMaestra').value;
             if (pass === CLAVE_FIJA) {
@@ -417,7 +429,6 @@
             location.reload();
         }
 
-        // REPORTES SUPABASE
         async function cargarReportes() {
             const { data, error } = await _supabase.from('reportes_altrom').select('*').order('created_at', { ascending: false });
             if (data) {
