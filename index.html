@@ -237,7 +237,8 @@
         const SUPABASE_KEY = 'sb_publishable_pd-qR6M790mUr3PQaY_jmQ_yEfW5dyD';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        const URL_EXCEL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQk60msZmpo6nkev4Bt1sBuh_7Isy-K96-cscFKmm9QUdt_FJIu0Npu17LWnhgqcg/pub?output=csv";
+        // NUEVO ENLACE DRIVE ACTUALIZADO CORRECTAMENTE
+        const URL_EXCEL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQsxuDV_DUkyPLWCVXcP9QpPt8c1yy9mzPuZ_mWmhXOP16uSAIbcyZmxph4YlcFAg/pub?output=csv";
 
         function alternarModoAdmin() {
             if (esAdmin) {
@@ -257,7 +258,7 @@
             if (pass === CLAVE_ADMIN) {
                 esAdmin = true;
                 document.getElementById('modalAdmin').classList.add('hidden');
-                document.getElementById('btnRolIndicator').innerText = "Modo Administrador ✓";
+                document.getElementById('btnRolIndicator').innerText = "Modo Administrator ✓";
                 document.getElementById('btnRolIndicator').className = "text-[9px] font-bold bg-orange-altrom text-white px-3 py-1.5 rounded-full uppercase transition-all tracking-widest shadow-md";
                 procesarTablaPedidos();
                 cargarReportes();
@@ -341,7 +342,6 @@
 
                 const status = localStorage.getItem(`status_altrom_${nroDocumento}`) || 'PENDIENTE';
                 
-                // CONDICIONAL LOGICIAL PARA EL COLOR DEL BADGE DE ESTATUS (ANULADA EN ROJO)
                 let colorStatus = 'bg-blue-50 text-blue-600';
                 if (status === 'ENTREGADO') {
                     colorStatus = 'bg-green-50 text-green-600';
