@@ -11,6 +11,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
     <style>
         body { font-family: 'Montserrat', sans-serif; overflow-x: hidden; }
         .font-reporte { font-family: 'Libre Baskerville', serif; font-weight: 700; letter-spacing: -1px; line-height: 1; }
@@ -262,9 +264,19 @@
         const CLAVE_FIJA = "Altrom2024"; 
         const CORREO_MASTER = "jfparadag2004@gmail.com";
         
+        // ==========================================
+        // 🚨 CONFIGURACIÓN DE CREDENCIALES EMAILJS
+        // ==========================================
+        const EMAILJS_PUBLIC_KEY = "RIR3oTlFRlsM41il6";
+        const EMAILJS_SERVICE_ID = "service_bigtnco";
+        const EMAILJS_TEMPLATE_ID = "template_sc1e8cr";
+
+        // Inicializar EmailJS con tu Public Key de forma nativa
+        emailjs.init(EMAILJS_PUBLIC_KEY);
+
         let usuarioActual = null;
         let cacheFilasDrive = []; 
-        let mapaFacturasDB = {}; // Almacenará estados en Supabase {id_factura: {estatus, recibido_cb}}
+        let mapaFacturasDB = {}; 
 
         const SUPABASE_URL = 'https://ahubtenryiezbymprtra.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_pd-qR6M790mUr3PQaY_jmQ_yEfW5dyD';
@@ -272,7 +284,6 @@
 
         const URL_EXCEL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQsxuDV_DUkyPLWCVXcP9QpPt8c1yy9mzPuZ_mWmhXOP16uSAIbcyZmxph4YlcFAg/pub?output=csv";
 
-        // MANEJO DEL REPORTE SIDEBAR DESPLEGABLE
         function toggleSidebar(open) {
             const side = document.getElementById('sidebarAdmin');
             side.style.transform = open ? 'translateX(0)' : 'translateX(-100%)';
@@ -293,7 +304,6 @@
             }
         }
 
-        // SEGURIDAD DE ACCESO Y SESIÓN
         function verificarClave() {
             const pass = document.getElementById('inputClaveMaestra').value;
             if (pass === CLAVE_FIJA) {
@@ -312,12 +322,10 @@
         }
 
         async function evaluarPerfilYAcceso(authUser) {
-            // Consulta de perfil en Supabase
             const { data: perfil, error } = await _supabase.from('perfiles_usuarios').select('*').eq('id', authUser.id).single();
             
             if (authUser.email === CORREO_MASTER) {
-                // Forzar Auto-Creado y Aprobación del Desarrollador Maestro
-                usuarioActual = { id: authUser.id, email: authUser.email, rol: 'Desarrollador', aprobado: true };
+                usuarioActual = { id: authUser.id, email: authUser.email, rol: 'Dev', aprobado: true };
                 if (!perfil) {
                     await _supabase.from('perfiles_usuarios').insert([usuarioActual]);
                 }
@@ -347,12 +355,10 @@
             document.getElementById('pantallaEspera').classList.add('hidden-content');
             document.getElementById('contenidoWeb').classList.remove('hidden-content');
             
-            // Pintar cabecera e interfaz de usuario
             document.getElementById('navUserName').innerText = usuarioActual.email.split('@')[0];
             document.getElementById('navUserRol').innerText = `Rol: ${usuarioActual.rol}`;
 
-            // CONTROL DE ACCESOS POR ROL EN LA INTERFAZ VISUAL
-            if (usuarioActual.rol === 'Desarrollador') {
+            if (usuarioActual.rol === 'Dev' || usuarioActual.rol === 'Desarrollador') {
                 document.getElementById('btnSidebarTrigger').classList.remove('hidden-content');
             }
             if (usuarioActual.rol === 'Visualizador' || usuarioActual.rol === 'Cuentas por cobrar') {
@@ -362,7 +368,6 @@
             cargarReportes();
         }
 
-        // CONTROL DE BASE DE DATOS DE AUTENTICACIÓN
         async function handleLogin() {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
@@ -382,12 +387,21 @@
             if (error) { document.getElementById('authMsg').innerText = "Error: " + error.message; return; }
             
             if (data.user) {
-                // Registrar registro en la tabla de perfiles en espera
                 const profileData = { id: data.user.id, email: email, rol: rol, aprobado: false };
                 await _supabase.from('perfiles_usuarios').insert([profileData]);
                 
-                // Formular llamada de link simulado directo a tu correo para aprobación
-                console.log(`MAIL LOG: Solicitud enviada a ${CORREO_MASTER}. Link de Aprobación Directa: https://altrom-logistica.web.app/?approve_id=${data.user.id}`);
+                // DISPARAR LA ALERTA DE CORREO AUTOMÁTICA MEDIANTE EMAILJS
+                const templateParams = {
+                    email_user: email,
+                    rol_user: rol
+                };
+
+                emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams)
+                    .then(function(response) {
+                        console.log('SUCCESS! Correo electrónico enviado al Desarrollador Master.', response.status, response.text);
+                    }, function(error) {
+                        console.error('FAILED... Error en el envío del correo electrónico de control.', error);
+                    });
                 
                 document.getElementById('authMsg').className = "mt-4 text-[9px] text-green-600 font-bold uppercase";
                 document.getElementById('authMsg').innerText = "¡Registro enviado! Espera que el desarrollador te apruebe.";
@@ -399,7 +413,6 @@
             location.reload();
         }
 
-        // PANEL ADMINISTRATIVO DESARROLLADOR DE USUARIOS
         async function fetchGestionUsuarios() {
             const { data: todos, error } = await _supabase.from('perfiles_usuarios').select('*');
             if(todos) {
@@ -455,7 +468,6 @@
             }
         }
 
-        // SINCRONIZACIÓN PERSISTENTE EN BASE DE DATOS (CONTROL DE PEDIDOS)
         async function syncFacturasSupabase() {
             const { data } = await _supabase.from('control_facturas').select('*');
             mapaFacturasDB = {};
@@ -486,11 +498,10 @@
             cargarPedidosExcel();
         }
 
-        // PROCESAMIENTO MATRIZ EXCEL CON MAPEO DE DATOS REALES EN NUBE
         async function cargarPedidosExcel() {
             const tabla = document.getElementById('tablaPedidos');
             try {
-                await syncFacturasSupabase(); // Descargar estados actualizados de Supabase
+                await syncFacturasSupabase(); 
                 const respuesta = await fetch(URL_EXCEL_CSV);
                 if (!respuesta.ok) throw new Error('Error al conectar');
                 const texto = await respuesta.text();
@@ -522,7 +533,6 @@
                 const montoBs = c[14] || '0.00';    
                 const montoUSD = c[15] || '0.00';   
 
-                // Cruzar datos con el mapa de Supabase
                 const datosDB = mapaFacturasDB[nroDocumento] || { estatus: 'PENDIENTE', recibido_cb: false };
                 const status = datosDB.estatus;
                 const recibidoCB = datosDB.recibido_cb;
@@ -531,9 +541,8 @@
                 if (status === 'ENTREGADO') colorStatus = 'bg-green-50 text-green-600';
                 if (status === 'ANULADA') colorStatus = 'bg-red-50 text-red-600';
                 
-                // Renderizado condicional según Rol de Logística o Desarrollador
                 let renderEstatus = '';
-                if (usuarioActual.rol === 'Logistica' || usuarioActual.rol === 'Desarrollador') {
+                if (usuarioActual.rol === 'Logistica' || usuarioActual.rol === 'Dev' || usuarioActual.rol === 'Desarrollador') {
                     renderEstatus = `
                         <select onchange="modificarEstatusFacturaDB('${nroDocumento}', this.value)" class="text-[10px] font-bold p-1 rounded-md border bg-white focus:ring-1 focus:ring-orange-500 outline-none text-gray-700 uppercase">
                             <option value="PENDIENTE" ${status === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
@@ -544,7 +553,6 @@
                     renderEstatus = `<span class="px-3 py-1 ${colorStatus} rounded-full font-bold text-[9px]">${status}</span>`;
                 }
 
-                // Renderizado condicional exclusivo del tilde para Cuentas por Cobrar o Desarrollador
                 let renderRecibido = '';
                 if (usuarioActual.rol === 'Cuentas por cobrar' || usuarioActual.rol === 'Dev' || usuarioActual.rol === 'Desarrollador') {
                     renderRecibido = `<input type="checkbox" ${recibidoCB ? 'checked' : ''} onchange="modificarTildeRecibidoCB('${nroDocumento}', this.checked)" class="w-4 h-4 accent-green-600 cursor-pointer">`;
@@ -569,7 +577,6 @@
             tabla.innerHTML = html || '<tr><td colspan="9" class="p-4 text-center">No se encontraron registros activos.</td></tr>';
         }
 
-        // FILTROS
         function filtrarPedidos() {
             const input = document.getElementById('buscadorPedidos').value.toUpperCase();
             const filas = document.querySelectorAll('#tablaPedidos tr');
@@ -598,7 +605,6 @@
             }
         }
 
-        // NOVEDADES (SUPABASE HISTORIAL)
         async function cargarReportes() {
             const { data } = await _supabase.from('reportes_altrom').select('*').order('created_at', { ascending: false });
             if (data) {
@@ -613,8 +619,8 @@
                         <td class="p-4 uppercase">${r.chofer}</td>
                         <td class="p-4 flex gap-2 justify-center items-center">
                             <button onclick='reexportarPDF(${JSON.stringify(r)})' class="bg-gray-800 text-white px-2 py-1 rounded text-[9px] font-bold">PDF</button>
-                            ${(!esListo && (usuarioActual.rol === 'Logistica' || usuarioActual.rol === 'Desarrollador')) ? `<button onclick='generarNC(${JSON.stringify(r)})' class="bg-red-600 text-white px-2 py-1 rounded text-[9px] font-bold uppercase">NC</button>` : ''}
-                            ${usuarioActual.rol === 'Desarrollador' ? `<button onclick='removerReporteSupabase(${r.id})' class="bg-black text-white px-2 py-1 rounded text-[9px] font-bold uppercase hover:bg-red-800 transition-colors">X</button>` : ''}
+                            ${(!esListo && (usuarioActual.rol === 'Logistica' || usuarioActual.rol === 'Dev' || usuarioActual.rol === 'Desarrollador')) ? `<button onclick='generarNC(${JSON.stringify(r)})' class="bg-red-600 text-white px-2 py-1 rounded text-[9px] font-bold uppercase">NC</button>` : ''}
+                            ${(usuarioActual.rol === 'Dev' || usuarioActual.rol === 'Desarrollador') ? `<button onclick='removerReporteSupabase(${r.id})' class="bg-black text-white px-2 py-1 rounded text-[9px] font-bold uppercase hover:bg-red-800 transition-colors">X</button>` : ''}
                         </td>
                     </tr>`;
                 }).join('');
@@ -677,7 +683,6 @@
             if (!error) { exportarPDF_Logic(r, p, "NOTA DE CRÉDITO"); cargarReportes(); }
         }
 
-        // CARRUSEL
         const imagenesArr = document.querySelectorAll('#carrusel-container img');
         let idxImg = 0;
         setInterval(() => {
@@ -687,15 +692,6 @@
                 imagenesArr[idxImg].classList.add('active');
             }
         }, 4500);
-
-        // DETECTAR PARÁMETROS URL DIRECTOS DESDE EL CORREO ELECTRONICO DE APROBACIÓN
-        window.addEventListener('DOMContentLoaded', () => {
-            const params = new URLSearchParams(window.location.search);
-            const userApproveId = params.get('approve_id');
-            if(userApproveId) {
-                alert("ID detectado desde correo electrónico maestro. Por favor, valide su clave maestra para ingresar al Panel e impactar la base de datos.");
-            }
-        });
 
     </script>
 </body>
