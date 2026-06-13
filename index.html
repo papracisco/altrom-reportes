@@ -64,7 +64,7 @@
         <div class="max-w-md bg-gray-800 p-8 rounded-3xl border border-gray-700 shadow-2xl">
             <span class="text-6xl block mb-4">⏳</span>
             <h2 class="font-reporte text-2xl text-orange-altrom uppercase mb-3">Acceso Restringido</h2>
-            <p class="text-sm text-gray-400 leading-relaxed mb-6">Tu cuenta ha sido creada exitosamente pero se encuentra **En espera de aprobación** por el Desarrollador. Se te notificará a tu correo una vez seas verificado.</p>
+            <p class="text-sm text-gray-400 leading-relaxed mb-6">Tu cuenta ha sido creada exitosamente pero se encuentra **En espera de aprobación** por el Desarrollador. Se te notificará una vez seas verificado por la administración.</p>
             <button onclick="location.reload()" class="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-xl text-xs font-bold uppercase tracking-widest">Regresar al Login</button>
         </div>
     </div>
@@ -264,7 +264,7 @@
         
         let usuarioActual = null;
         let cacheFilasDrive = []; 
-        let mapaFacturasDB = {}; // Almacenará estados en Supabase {id_factura: {estatus, recibido_cb}}
+        let mapaFacturasDB = {}; 
 
         const SUPABASE_URL = 'https://ahubtenryiezbymprtra.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_pd-qR6M790mUr3PQaY_jmQ_yEfW5dyD';
@@ -272,7 +272,6 @@
 
         const URL_EXCEL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQsxuDV_DUkyPLWCVXcP9QpPt8c1yy9mzPuZ_mWmhXOP16uSAIbcyZmxph4YlcFAg/pub?output=csv";
 
-        // MANEJO DEL REPORTE SIDEBAR DESPLEGABLE
         function toggleSidebar(open) {
             const side = document.getElementById('sidebarAdmin');
             side.style.transform = open ? 'translateX(0)' : 'translateX(-100%)';
@@ -293,7 +292,6 @@
             }
         }
 
-        // SEGURIDAD DE ACCESO Y SESIÓN
         function verificarClave() {
             const pass = document.getElementById('inputClaveMaestra').value;
             if (pass === CLAVE_FIJA) {
@@ -312,11 +310,9 @@
         }
 
         async function evaluarPerfilYAcceso(authUser) {
-            // Consulta de perfil en Supabase
             const { data: perfil, error } = await _supabase.from('perfiles_usuarios').select('*').eq('id', authUser.id).single();
             
             if (authUser.email === CORREO_MASTER) {
-                // Forzar Auto-Creado y Aprobación del Desarrollador Maestro
                 usuarioActual = { id: authUser.id, email: authUser.email, rol: 'Desarrollador', aprobado: true };
                 if (!perfil) {
                     await _supabase.from('perfiles_usuarios').insert([usuarioActual]);
@@ -347,11 +343,9 @@
             document.getElementById('pantallaEspera').classList.add('hidden-content');
             document.getElementById('contenidoWeb').classList.remove('hidden-content');
             
-            // Pintar cabecera e interfaz de usuario
             document.getElementById('navUserName').innerText = usuarioActual.email.split('@')[0];
             document.getElementById('navUserRol').innerText = `Rol: ${usuarioActual.rol}`;
 
-            // CONTROL DE ACCESOS POR ROL EN LA INTERFAZ VISUAL
             if (usuarioActual.rol === 'Desarrollador') {
                 document.getElementById('btnSidebarTrigger').classList.remove('hidden-content');
             }
@@ -362,7 +356,6 @@
             cargarReportes();
         }
 
-        // CONTROL DE BASE DE DATOS DE AUTENTICACIÓN
         async function handleLogin() {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
@@ -382,11 +375,9 @@
             if (error) { document.getElementById('authMsg').innerText = "Error: " + error.message; return; }
             
             if (data.user) {
-                // Registrar registro en la tabla de perfiles en espera
                 const profileData = { id: data.user.id, email: email, rol: rol, aprobado: false };
                 await _supabase.from('perfiles_usuarios').insert([profileData]);
                 
-                // Formular llamada de link simulado directo a tu correo para aprobación
                 console.log(`MAIL LOG: Solicitud enviada a ${CORREO_MASTER}. Link de Aprobación Directa: https://altrom-logistica.web.app/?approve_id=${data.user.id}`);
                 
                 document.getElementById('authMsg').className = "mt-4 text-[9px] text-green-600 font-bold uppercase";
@@ -399,7 +390,6 @@
             location.reload();
         }
 
-        // PANEL ADMINISTRATIVO DESARROLLADOR DE USUARIOS
         async function fetchGestionUsuarios() {
             const { data: todos, error } = await _supabase.from('perfiles_usuarios').select('*');
             if(todos) {
@@ -455,7 +445,6 @@
             }
         }
 
-        // SINCRONIZACIÓN PERSISTENTE EN BASE DE DATOS (CONTROL DE PEDIDOS)
         async function syncFacturasSupabase() {
             const { data } = await _supabase.from('control_facturas').select('*');
             mapaFacturasDB = {};
@@ -486,11 +475,10 @@
             cargarPedidosExcel();
         }
 
-        // PROCESAMIENTO MATRIZ EXCEL CON MAPEO DE DATOS REALES EN NUBE
         async function cargarPedidosExcel() {
             const tabla = document.getElementById('tablaPedidos');
             try {
-                await syncFacturasSupabase(); // Descargar estados actualizados de Supabase
+                await syncFacturasSupabase(); 
                 const respuesta = await fetch(URL_EXCEL_CSV);
                 if (!respuesta.ok) throw new Error('Error al conectar');
                 const texto = await respuesta.text();
@@ -522,7 +510,6 @@
                 const montoBs = c[14] || '0.00';    
                 const montoUSD = c[15] || '0.00';   
 
-                // Cruzar datos con el mapa de Supabase
                 const datosDB = mapaFacturasDB[nroDocumento] || { estatus: 'PENDIENTE', recibido_cb: false };
                 const status = datosDB.estatus;
                 const recibidoCB = datosDB.recibido_cb;
@@ -531,7 +518,6 @@
                 if (status === 'ENTREGADO') colorStatus = 'bg-green-50 text-green-600';
                 if (status === 'ANULADA') colorStatus = 'bg-red-50 text-red-600';
                 
-                // Renderizado condicional según Rol de Logística o Desarrollador
                 let renderEstatus = '';
                 if (usuarioActual.rol === 'Logistica' || usuarioActual.rol === 'Desarrollador') {
                     renderEstatus = `
@@ -544,9 +530,8 @@
                     renderEstatus = `<span class="px-3 py-1 ${colorStatus} rounded-full font-bold text-[9px]">${status}</span>`;
                 }
 
-                // Renderizado condicional exclusivo del tilde para Cuentas por Cobrar o Desarrollador
                 let renderRecibido = '';
-                if (usuarioActual.rol === 'Cuentas por cobrar' || usuarioActual.rol === 'Dev' || usuarioActual.rol === 'Desarrollador') {
+                if (usuarioActual.rol === 'Cuentas por cobrar' || usuarioActual.rol === 'Desarrollador') {
                     renderRecibido = `<input type="checkbox" ${recibidoCB ? 'checked' : ''} onchange="modificarTildeRecibidoCB('${nroDocumento}', this.checked)" class="w-4 h-4 accent-green-600 cursor-pointer">`;
                 } else {
                     renderRecibido = recibidoCB ? '<span class="text-green-600 font-bold text-xs">✓ RECIBIDO</span>' : '<span class="text-gray-300 text-[10px]">PTE</span>';
@@ -569,7 +554,6 @@
             tabla.innerHTML = html || '<tr><td colspan="9" class="p-4 text-center">No se encontraron registros activos.</td></tr>';
         }
 
-        // FILTROS
         function filtrarPedidos() {
             const input = document.getElementById('buscadorPedidos').value.toUpperCase();
             const filas = document.querySelectorAll('#tablaPedidos tr');
@@ -598,7 +582,6 @@
             }
         }
 
-        // NOVEDADES (SUPABASE HISTORIAL)
         async function cargarReportes() {
             const { data } = await _supabase.from('reportes_altrom').select('*').order('created_at', { ascending: false });
             if (data) {
@@ -643,27 +626,177 @@
             else { exportarPDF_Logic(datos, listaProductos, "REPORTE"); document.getElementById('modalForm').classList.add('hidden'); document.getElementById('formReporte').reset(); btn.innerText = "Guardar Reporte y Descargar PDF"; btn.disabled = false; cargarReportes(); }
         }
 
-        for (let i = 0; i < 1; i++) {
-            function exportarPDF_Logic(data, productos, titulo) {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                const esNC = titulo === "NOTA DE CRÉDITO";
-                doc.addImage('logo.png', 'PNG', 15, 8, 25, 25);
-                doc.setFont("helvetica", "bold");
-                doc.setTextColor(esNC ? 0 : 220, esNC ? 0 : 38, esNC ? 0 : 38);
-                doc.text(esNC ? "NOTA DE CRÉDITO" : "ALTROM VENEZUELA - REPORTE DE LOGÍSTICA", 105, 20, { align: "center" });
-                doc.setFontSize(10); doc.setTextColor(0, 0, 0);
-                doc.text(`Nota/Factura: ${data.factura}`, 20, 38);
-                doc.text(`Fecha: ${data.fecha}`, 150, 38);
-                doc.text(`Cliente: ${data.cliente.toUpperCase()}`, 20, 48);
-                doc.autoTable({ startY: 68, head: [[esNC ? 'DESCRIPCIÓN' : 'TIPO DE MERCANCÍA', 'BULTOS', 'UNIDADES', 'PESO (KG)']], body: productos, theme: esNC ? 'grid' : 'striped', headStyles: { fillColor: esNC ? [40, 40, 40] : [240, 84, 35] } });
-                const finalY = doc.lastAutoTable.finalY + 15;
-                doc.setFont("helvetica", "bold"); doc.text(esNC ? "MOTIVO DE CRÉDITO:" : "DETALLES DE NOVEDAD:", 20, finalY);
-                doc.setFont("helvetica", "normal"); doc.text(data.novedad || "Sin detalles adicionales.", 20, finalY + 10, { maxWidth: 170 });
-                doc.setFont("helvetica", "bold"); doc.text(`CHOFER / VENDEDOR: ${data.chofer.toUpperCase()}`, 20, finalY + 35);
-                doc.line(20, finalY + 60, 80, finalY + 60); doc.text("FIRMA", 20, finalY + 65);
-                doc.save(`${titulo}_${data.factura}.pdf`);
+        function exportarPDF_Logic(data, productos, titulo) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+
+            const COLOR_LINEA_AZUL = [30, 70, 140];    
+            const COLOR_TEXTO_NEGRO = [40, 40, 40];
+            const COLOR_ROJO_CONTROL = [180, 40, 40];  
+            
+            doc.addImage('logo.png', 'PNG', 16, 12, 22, 22);
+            
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.setTextColor(30, 60, 120);
+            doc.text("DEPARTAMENTO DE LOGISTICA", 105, 18, { align: "center" });
+            
+            doc.setFontSize(10);
+            doc.text("FORMATO DE CONTROL DE RECEPCION DE MERCANCIA", 105, 24, { align: "center" });
+
+            doc.setFontSize(9);
+            doc.setTextColor(COLOR_TEXTO_NEGRO[0], COLOR_TEXTO_NEGRO[1], COLOR_TEXTO_NEGRO[2]);
+            doc.text("Nro. CONTROL", 185, 16, { align: "right" });
+            
+            doc.setFontSize(14);
+            doc.setTextColor(COLOR_ROJO_CONTROL[0], COLOR_ROJO_CONTROL[1], COLOR_ROJO_CONTROL[2]);
+            const nroControl = data.factura ? data.factura.slice(-4).padStart(4, '0') : "0000";
+            doc.text(nroControl, 185, 23, { align: "right" });
+
+            doc.setDrawColor(COLOR_LINEA_AZUL[0], COLOR_LINEA_AZUL[1], COLOR_LINEA_AZUL[2]);
+            doc.setLineWidth(0.3);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(8);
+            doc.setTextColor(COLOR_TEXTO_NEGRO[0], COLOR_TEXTO_NEGRO[1], COLOR_TEXTO_NEGRO[2]);
+
+            // Fila 1: CLIENTE
+            doc.rect(16, 32, 35, 7); 
+            doc.text("CLIENTE O PROVEEDOR", 18, 36.5);
+            doc.rect(51, 32, 143, 7); 
+            doc.setFont("helvetica", "normal");
+            doc.text((data.cliente || '').toUpperCase(), 54, 36.5);
+
+            // Fila 2: NRO. FACTURA
+            doc.setFont("helvetica", "bold");
+            doc.rect(16, 39, 35, 7);
+            doc.text("NRO. FACTURA O NE", 18, 43.5);
+            doc.rect(51, 39, 143, 7);
+            doc.setFont("helvetica", "normal");
+            doc.text((data.factura || '').toUpperCase(), 54, 43.5);
+
+            // Fila 3: FECHA
+            doc.setFont("helvetica", "bold");
+            doc.rect(16, 46, 35, 7);
+            doc.text("FECHA", 18, 50.5);
+            doc.rect(51, 46, 143, 7);
+            doc.setFont("helvetica", "normal");
+            doc.text(data.fecha || '', 54, 50.5);
+
+            // Fila 4: RUTA
+            doc.setFont("helvetica", "bold");
+            doc.rect(16, 53, 35, 7);
+            doc.text("RUTA", 18, 57.5);
+            doc.rect(51, 53, 143, 7);
+            doc.setFont("helvetica", "normal");
+            doc.text((data.ruta || '').toUpperCase(), 54, 57.5);
+
+            // TIPO DE MERCANCIA casillas
+            doc.setFont("helvetica", "bold");
+            doc.text("TIPO DE MERCANCIA", 16, 66);
+            doc.rect(16, 69, 30, 6);
+            doc.text("MP O VIVERES", 18, 73);
+            doc.rect(46, 69, 15, 6); 
+            
+            doc.rect(70, 69, 30, 6);
+            doc.text("DEVOLUCION", 72, 73);
+            doc.rect(100, 69, 15, 6); 
+
+            let totalUnd = 0;
+            let totalBultos = 0;
+            let totalKg = 0;
+
+            const filasTabla = productos.map((prod, index) => {
+                const descripcion = prod[0] || "";
+                const bultos = parseFloat(prod[1]) || 0;
+                const unidades = parseFloat(prod[2]) || 0;
+                const kg = parseFloat(prod[3]) || 0;
+
+                totalUnd += unidades;
+                totalBultos += bultos;
+                totalKg += kg;
+
+                return [
+                    index + 1,               
+                    unidades || "",          
+                    bultos || "",            
+                    kg || "",                
+                    descripcion.toUpperCase() 
+                ];
+            });
+
+            while (filasTabla.length < 15) {
+                filasTabla.push([filasTabla.length + 1, "", "", "", ""]);
             }
+
+            filasTabla.push([
+                { content: 'TOTALES', colSpan: 1, styles: { fontStyle: 'bold', halign: 'center' } },
+                totalUnd || "",
+                totalBultos || "",
+                totalKg || "",
+                ""
+            ]);
+
+            doc.autoTable({
+                startY: 80,
+                margin: { left: 16, right: 16 },
+                head: [['ITEM', 'CANT (UND)', 'CANT (BULTOS)', 'CANT (KG)', 'DESCRIPCION']],
+                body: filasTabla,
+                theme: 'grid',
+                styles: {
+                    fontSize: 8,
+                    textColor: [0, 0, 0],
+                    lineColor: COLOR_LINEA_AZUL,
+                    lineWidth: 0.2,
+                    padding: 2.5
+                },
+                headStyles: {
+                    fillColor: [255, 255, 255], 
+                    textColor: COLOR_TEXTO_NEGRO,
+                    fontStyle: 'bold',
+                    halign: 'center',
+                    lineWidth: 0.3
+                },
+                columnStyles: {
+                    0: { cellWidth: 12, halign: 'center' }, 
+                    1: { cellWidth: 24, halign: 'center' }, 
+                    2: { cellWidth: 26, halign: 'center' }, 
+                    3: { cellWidth: 24, halign: 'center' }, 
+                    4: { halign: 'left' }                   
+                },
+                didParseCell: function (d) {
+                    if (d.row.index === filasTabla.length - 1) {
+                        d.cell.styles.fontStyle = 'bold';
+                        d.cell.styles.fillColor = [245, 247, 250];
+                    }
+                }
+            });
+
+            let finalY = doc.lastAutoTable.finalY + 8;
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(8);
+            doc.text("OBSERVACIONES:", 16, finalY);
+            
+            doc.rect(16, finalY + 3, 178, 22); 
+            doc.setFont("helvetica", "normal");
+            doc.text(data.novedad || "Sin observaciones adicionales.", 20, finalY + 8, { maxWidth: 170 });
+
+            const camposFirmaY = finalY + 45;
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(8);
+            doc.setDrawColor(COLOR_TEXTO_NEGRO[0], COLOR_TEXTO_NEGRO[1], COLOR_TEXTO_NEGRO[2]);
+            doc.setLineWidth(0.2);
+
+            doc.line(16, camposFirmaY, 66, camposFirmaY);
+            doc.text("ENTREGA CONFORME", 41, camposFirmaY + 4, { align: "center" });
+
+            doc.line(80, camposFirmaY, 130, camposFirmaY);
+            doc.text("RECIBE CONFORME", 105, camposFirmaY + 4, { align: "center" });
+
+            doc.line(144, camposFirmaY, 194, camposFirmaY);
+            doc.text("VERIFICADO POR", 169, camposFirmaY + 4, { align: "center" });
+
+            doc.save(`${titulo}_${data.factura}.pdf`);
         }
 
         function reexportarPDF(r) {
@@ -677,7 +810,6 @@
             if (!error) { exportarPDF_Logic(r, p, "NOTA DE CRÉDITO"); cargarReportes(); }
         }
 
-        // CARRUSEL
         const imagenesArr = document.querySelectorAll('#carrusel-container img');
         let idxImg = 0;
         setInterval(() => {
@@ -688,7 +820,6 @@
             }
         }, 4500);
 
-        // DETECTAR PARÁMETROS URL DIRECTOS DESDE EL CORREO ELECTRONICO DE APROBACIÓN
         window.addEventListener('DOMContentLoaded', () => {
             const params = new URLSearchParams(window.location.search);
             const userApproveId = params.get('approve_id');
