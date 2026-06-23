@@ -313,7 +313,7 @@
             const { data: perfil, error } = await _supabase.from('perfiles_usuarios').select('*').eq('id', authUser.id).single();
             
             if (authUser.email === CORREO_MASTER) {
-                usuarioActual = { id: authUser.id, email: authUser.email, rol: 'Desarrollador', aprobado: true };
+                usuarioActual = { id: authUser.id, email: authUser.email, rol: 'Desarrollador', approved: true };
                 if (!perfil) {
                     await _supabase.from('perfiles_usuarios').insert([usuarioActual]);
                 }
@@ -604,6 +604,30 @@
             }
         }
 
+        // ==========================================
+        // 🚨 FUNCIÓN PARA ELIMINAR REPORTES DESDE EL ROL DESARROLLADOR
+        // ==========================================
+        async function removerReporteSupabase(id) {
+            if (confirm("¿Estás seguro de que deseas eliminar permanentemente este reporte de la base de datos de Altrom?")) {
+                try {
+                    const { error } = await _supabase
+                        .from('reportes_altrom')
+                        .delete()
+                        .eq('id', id);
+
+                    if (error) {
+                        throw error;
+                    }
+
+                    // Refrescar el listado en pantalla automáticamente
+                    cargarReportes();
+                } catch (err) {
+                    console.error("Error crítico al eliminar reporte:", err.message);
+                    alert("No se pudo eliminar el reporte: " + err.message);
+                }
+            }
+        }
+
         function agregarFila() {
             const container = document.getElementById('contenedorProductos');
             const nuevaFila = document.createElement('div');
@@ -659,14 +683,12 @@
             doc.setFontSize(8);
             doc.setTextColor(COLOR_TEXTO_NEGRO[0], COLOR_TEXTO_NEGRO[1], COLOR_TEXTO_NEGRO[2]);
 
-            // Fila 1: CLIENTE
             doc.rect(16, 32, 35, 7); 
             doc.text("CLIENTE O PROVEEDOR", 18, 36.5);
             doc.rect(51, 32, 143, 7); 
             doc.setFont("helvetica", "normal");
             doc.text((data.cliente || '').toUpperCase(), 54, 36.5);
 
-            // Fila 2: NRO. FACTURA
             doc.setFont("helvetica", "bold");
             doc.rect(16, 39, 35, 7);
             doc.text("NRO. FACTURA O NE", 18, 43.5);
@@ -674,7 +696,6 @@
             doc.setFont("helvetica", "normal");
             doc.text((data.factura || '').toUpperCase(), 54, 43.5);
 
-            // Fila 3: FECHA
             doc.setFont("helvetica", "bold");
             doc.rect(16, 46, 35, 7);
             doc.text("FECHA", 18, 50.5);
@@ -682,7 +703,6 @@
             doc.setFont("helvetica", "normal");
             doc.text(data.fecha || '', 54, 50.5);
 
-            // Fila 4: RUTA
             doc.setFont("helvetica", "bold");
             doc.rect(16, 53, 35, 7);
             doc.text("RUTA", 18, 57.5);
@@ -690,7 +710,6 @@
             doc.setFont("helvetica", "normal");
             doc.text((data.ruta || '').toUpperCase(), 54, 57.5);
 
-            // TIPO DE MERCANCIA casillas
             doc.setFont("helvetica", "bold");
             doc.text("TIPO DE MERCANCIA", 16, 66);
             doc.rect(16, 69, 30, 6);
