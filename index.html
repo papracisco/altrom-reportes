@@ -589,12 +589,11 @@
         }
 
         // ==========================================
-        // CALCULO DINÁMICO DEL CORRELATIVO SIN HUECOS
+        // CALCULO DINÁMICO CORREGIDO USANDO EXCLUSIVAMENTE 'nro_control'
         // ==========================================
         async function abrirFormularioReporte() {
             document.getElementById('labelProximoControl').innerText = "Calculando...";
             try {
-                // Buscamos el reporte con el 'nro_control' más alto registrado actualmente
                 const { data, error } = await _supabase
                     .from('reportes_altrom')
                     .select('nro_control')
@@ -604,14 +603,13 @@
                 if (data && data.length > 0 && data[0].nro_control) {
                     proximoNumeroControlCalculado = parseInt(data[0].nro_control) + 1;
                 } else {
-                    proximoNumeroControlCalculado = 1; // Si no hay registros, inicia en 1
+                    proximoNumeroControlCalculado = 1; 
                 }
             } catch (err) {
                 console.error("Error al calcular correlativo:", err);
                 proximoNumeroControlCalculado = 1;
             }
             
-            // Pintar el número formateado a 4 dígitos en el modal
             document.getElementById('labelProximoControl').innerText = String(proximoNumeroControlCalculado).padStart(4, '0');
             document.getElementById('modalForm').classList.remove('hidden');
         }
@@ -622,8 +620,8 @@
                 const tabla = document.getElementById('tablaReportes');
                 tabla.innerHTML = data.map(r => {
                     const esListo = r.estado === 'LISTO';
-                    // Mostrar el número de control guardado en la fila
                     const stringControl = r.nro_control ? String(r.nro_control).padStart(4, '0') : "0000";
+                    
                     return `<tr class="border-t hover:bg-orange-50 transition-colors">
                         <td class="p-4 font-bold ${esListo ? 'text-green-600' : 'text-orange-500'}">${esListo ? '✓ LISTO' : 'PENDIENTE'}</td>
                         <td class="p-4 font-mono font-bold text-gray-700">${stringControl}</td>
@@ -675,7 +673,6 @@
                 if(ins[0].value.trim() !== "") { listaProductos.push([ins[0].value.toUpperCase(), ins[1].value || 0, ins[2].value || 0, ins[3].value || 0]); }
             });
             
-            // Incluimos de forma explícita el 'nro_control' secuencial calculado
             const datos = { 
                 cliente: document.getElementById('cliente').value, 
                 fecha: document.getElementById('fecha').value, 
@@ -728,7 +725,6 @@
             doc.setFontSize(14);
             doc.setTextColor(COLOR_ROJO_CONTROL[0], COLOR_ROJO_CONTROL[1], COLOR_ROJO_CONTROL[2]);
             
-            // Usar el campo real de control asignado y guardado de forma nativa
             const stringNroControl = data.nro_control ? String(data.nro_control).padStart(4, '0') : "0000";
             doc.text(stringNroControl, 185, 23, { align: "right" });
 
