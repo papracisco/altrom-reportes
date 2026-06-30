@@ -119,7 +119,7 @@
                     <div class="w-full md:w-1/2">
                         <h1 class="font-reporte text-6xl md:text-7xl text-red-700 mb-2 uppercase">ALTROM <br> VENEZUELA <br> REPORTES</h1>
                         <h2 class="text-2xl tracking-[0.6em] font-light text-orange-altrom mb-10 uppercase italic">Logística</h2>
-                        <button id="btnAbrirFormReportes" onclick="document.getElementById('modalForm').classList.remove('hidden')" 
+                        <button id="btnAbrirFormReportes" onclick="abrirFormularioReporte()" 
                                 class="px-8 py-4 bg-orange-altrom hover:bg-red-700 text-white font-bold rounded-lg transition-all shadow-xl uppercase text-sm tracking-widest">
                             Abrir Formulario de Reportes
                         </button>
@@ -147,6 +147,7 @@
                             <thead class="bg-gray-50 text-orange-700 uppercase font-bold">
                                 <tr>
                                     <th class="p-4">Estado</th>
+                                    <th class="p-4">N° Control</th>
                                     <th class="p-4">Fecha</th>
                                     <th class="p-4">Cliente</th>
                                     <th class="p-4">Factura</th>
@@ -224,10 +225,14 @@
         </main>
     </div>
 
+    <!-- MODAL FORMULARIO DE REPORTE -->
     <div id="modalForm" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8">
             <div class="flex justify-between items-center border-b pb-4 mb-6 text-red-700">
-                <h3 class="text-2xl font-reporte uppercase italic">Nuevo Reporte</h3>
+                <div class="flex flex-col">
+                    <h3 class="text-2xl font-reporte uppercase italic">Nuevo Reporte</h3>
+                    <p class="text-[11px] font-bold text-orange-600 uppercase tracking-wider mt-1">Próximo N° Control Asignado: <span id="labelProximoControl" class="font-mono text-sm bg-orange-100 px-2 py-0.5 rounded text-gray-800">...</span></p>
+                </div>
                 <button onclick="document.getElementById('modalForm').classList.add('hidden')" class="text-gray-400 text-3xl font-bold">&times;</button>
             </div>
             <form id="formReporte" class="space-y-4">
@@ -265,6 +270,7 @@
         let usuarioActual = null;
         let cacheFilasDrive = []; 
         let mapaFacturasDB = {}; 
+        let proximoNumeroControlCalculado = 1;
 
         const SUPABASE_URL = 'https://ahubtenryiezbymprtra.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_pd-qR6M790mUr3PQaY_jmQ_yEfW5dyD';
@@ -313,7 +319,7 @@
             const { data: perfil, error } = await _supabase.from('perfiles_usuarios').select('*').eq('id', authUser.id).single();
             
             if (authUser.email === CORREO_MASTER) {
-                usuarioActual = { id: authUser.id, email: authUser.email, rol: 'Desarrollador', approved: true };
+                usuarioActual = { id: authUser.id, email: authUser.email, rol: 'Desarrollador', aprobado: true };
                 if (!perfil) {
                     await _supabase.from('perfiles_usuarios').insert([usuarioActual]);
                 }
@@ -582,14 +588,45 @@
             }
         }
 
+        // ==========================================
+        // CALCULO DINÁMICO DEL CORRELATIVO SIN HUECOS
+        // ==========================================
+        async function abrirFormularioReporte() {
+            document.getElementById('labelProximoControl').innerText = "Calculando...";
+            try {
+                // Buscamos el reporte con el 'nro_control' más alto registrado actualmente
+                const { data, error } = await _supabase
+                    .from('reportes_altrom')
+                    .select('nro_control')
+                    .order('nro_control', { ascending: false })
+                    .limit(1);
+                
+                if (data && data.length > 0 && data[0].nro_control) {
+                    proximoNumeroControlCalculado = parseInt(data[0].nro_control) + 1;
+                } else {
+                    proximoNumeroControlCalculado = 1; // Si no hay registros, inicia en 1
+                }
+            } catch (err) {
+                console.error("Error al calcular correlativo:", err);
+                proximoNumeroControlCalculado = 1;
+            }
+            
+            // Pintar el número formateado a 4 dígitos en el modal
+            document.getElementById('labelProximoControl').innerText = String(proximoNumeroControlCalculado).padStart(4, '0');
+            document.getElementById('modalForm').classList.remove('hidden');
+        }
+
         async function cargarReportes() {
             const { data } = await _supabase.from('reportes_altrom').select('*').order('created_at', { ascending: false });
             if (data) {
                 const tabla = document.getElementById('tablaReportes');
                 tabla.innerHTML = data.map(r => {
                     const esListo = r.estado === 'LISTO';
+                    // Mostrar el número de control guardado en la fila
+                    const stringControl = r.nro_control ? String(r.nro_control).padStart(4, '0') : "0000";
                     return `<tr class="border-t hover:bg-orange-50 transition-colors">
                         <td class="p-4 font-bold ${esListo ? 'text-green-600' : 'text-orange-500'}">${esListo ? '✓ LISTO' : 'PENDIENTE'}</td>
+                        <td class="p-4 font-mono font-bold text-gray-700">${stringControl}</td>
                         <td class="p-4">${r.fecha}</td>
                         <td class="p-4 font-bold uppercase text-red-700">${r.cliente}</td>
                         <td class="p-4 text-gray-500">${r.factura}</td>
@@ -604,9 +641,6 @@
             }
         }
 
-        // ==========================================
-        // 🚨 FUNCIÓN PARA ELIMINAR REPORTES DESDE EL ROL DESARROLLADOR
-        // ==========================================
         async function removerReporteSupabase(id) {
             if (confirm("¿Estás seguro de que deseas eliminar permanentemente este reporte de la base de datos de Altrom?")) {
                 try {
@@ -615,11 +649,7 @@
                         .delete()
                         .eq('id', id);
 
-                    if (error) {
-                        throw error;
-                    }
-
-                    // Refrescar el listado en pantalla automáticamente
+                    if (error) throw error;
                     cargarReportes();
                 } catch (err) {
                     console.error("Error crítico al eliminar reporte:", err.message);
@@ -644,10 +674,33 @@
                 const ins = f.querySelectorAll('input');
                 if(ins[0].value.trim() !== "") { listaProductos.push([ins[0].value.toUpperCase(), ins[1].value || 0, ins[2].value || 0, ins[3].value || 0]); }
             });
-            const datos = { cliente: document.getElementById('cliente').value, fecha: document.getElementById('fecha').value, factura: document.getElementById('factura').value, ruta: document.getElementById('ruta').value, chofer: document.getElementById('chofer').value, novedad: document.getElementById('novedad').value, estado: 'PENDIENTE', tipo: JSON.stringify(listaProductos) };
+            
+            // Incluimos de forma explícita el 'nro_control' secuencial calculado
+            const datos = { 
+                cliente: document.getElementById('cliente').value, 
+                fecha: document.getElementById('fecha').value, 
+                factura: document.getElementById('factura').value, 
+                ruta: document.getElementById('ruta').value, 
+                chofer: document.getElementById('chofer').value, 
+                novedad: document.getElementById('novedad').value, 
+                estado: 'PENDIENTE', 
+                tipo: JSON.stringify(listaProductos),
+                nro_control: proximoNumeroControlCalculado
+            };
+            
             const { error } = await _supabase.from('reportes_altrom').insert([datos]);
-            if (error) { alert("Error: " + error.message); btn.innerText = "REINTENTAR"; btn.disabled = false; }
-            else { exportarPDF_Logic(datos, listaProductos, "REPORTE"); document.getElementById('modalForm').classList.add('hidden'); document.getElementById('formReporte').reset(); btn.innerText = "Guardar Reporte y Descargar PDF"; btn.disabled = false; cargarReportes(); }
+            if (error) { 
+                alert("Error: " + error.message); 
+                btn.innerText = "REINTENTAR"; 
+                btn.disabled = false; 
+            } else { 
+                exportarPDF_Logic(datos, listaProductos, "REPORTE"); 
+                document.getElementById('modalForm').classList.add('hidden'); 
+                document.getElementById('formReporte').reset(); 
+                btn.innerText = "Guardar Reporte y Descargar PDF"; 
+                btn.disabled = false; 
+                cargarReportes(); 
+            }
         }
 
         function exportarPDF_Logic(data, productos, titulo) {
@@ -674,8 +727,10 @@
             
             doc.setFontSize(14);
             doc.setTextColor(COLOR_ROJO_CONTROL[0], COLOR_ROJO_CONTROL[1], COLOR_ROJO_CONTROL[2]);
-            const nroControl = data.factura ? data.factura.slice(-4).padStart(4, '0') : "0000";
-            doc.text(nroControl, 185, 23, { align: "right" });
+            
+            // Usar el campo real de control asignado y guardado de forma nativa
+            const stringNroControl = data.nro_control ? String(data.nro_control).padStart(4, '0') : "0000";
+            doc.text(stringNroControl, 185, 23, { align: "right" });
 
             doc.setDrawColor(COLOR_LINEA_AZUL[0], COLOR_LINEA_AZUL[1], COLOR_LINEA_AZUL[2]);
             doc.setLineWidth(0.3);
