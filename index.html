@@ -119,7 +119,7 @@
                     <div class="w-full md:w-1/2">
                         <h1 class="font-reporte text-6xl md:text-7xl text-red-700 mb-2 uppercase">ALTROM <br> VENEZUELA <br> REPORTES</h1>
                         <h2 class="text-2xl tracking-[0.6em] font-light text-orange-altrom mb-10 uppercase italic">Logística</h2>
-                        <button id="btnAbrirFormReportes" onclick="abrirFormularioReporte()" 
+                        <button id="btnAbrirFormReportes" onclick="document.getElementById('modalForm').classList.remove('hidden')" 
                                 class="px-8 py-4 bg-orange-altrom hover:bg-red-700 text-white font-bold rounded-lg transition-all shadow-xl uppercase text-sm tracking-widest">
                             Abrir Formulario de Reportes
                         </button>
@@ -138,7 +138,7 @@
                     <h3 class="font-reporte text-3xl text-red-700 mb-6 uppercase italic">Historial de Reportes</h3>
                     
                     <div class="mb-4 relative w-full md:w-96">
-                        <input type="text" id="buscadorReportes" onkeyup="filtrarReportes()" placeholder="Buscar por Factura, Cliente O Chofer..." class="w-full p-3 pl-10 rounded-xl bg-gray-50 border border-gray-100 text-sm outline-none focus:ring-2 focus:ring-orange-500 uppercase">
+                        <input type="text" id="buscadorReportes" onkeyup="filtrarReportes()" placeholder="Buscar por Factura, Cliente o Chofer..." class="w-full p-3 pl-10 rounded-xl bg-gray-50 border border-gray-100 text-sm outline-none focus:ring-2 focus:ring-orange-500 uppercase">
                         <span class="absolute left-3 top-3.5 opacity-30">🔍</span>
                     </div>
 
@@ -147,7 +147,6 @@
                             <thead class="bg-gray-50 text-orange-700 uppercase font-bold">
                                 <tr>
                                     <th class="p-4">Estado</th>
-                                    <th class="p-4">N° Control</th>
                                     <th class="p-4">Fecha</th>
                                     <th class="p-4">Cliente</th>
                                     <th class="p-4">Factura</th>
@@ -228,10 +227,7 @@
     <div id="modalForm" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8">
             <div class="flex justify-between items-center border-b pb-4 mb-6 text-red-700">
-                <div class="flex flex-col">
-                    <h3 class="text-2xl font-reporte uppercase italic">Nuevo Reporte</h3>
-                    <p class="text-[11px] font-bold text-orange-600 uppercase tracking-wider mt-1">Próximo N° Control Asignado: <span id="labelProximoControl" class="font-mono text-sm bg-orange-100 px-2 py-0.5 rounded text-gray-800">...</span></p>
-                </div>
+                <h3 class="text-2xl font-reporte uppercase italic">Nuevo Reporte</h3>
                 <button onclick="document.getElementById('modalForm').classList.add('hidden')" class="text-gray-400 text-3xl font-bold">&times;</button>
             </div>
             <form id="formReporte" class="space-y-4">
@@ -269,7 +265,6 @@
         let usuarioActual = null;
         let cacheFilasDrive = []; 
         let mapaFacturasDB = {}; 
-        let proximoNumeroControlCalculado = 545; // Correlativo inicial estricto forzado
 
         const SUPABASE_URL = 'https://ahubtenryiezbymprtra.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_pd-qR6M790mUr3PQaY_jmQ_yEfW5dyD';
@@ -318,7 +313,7 @@
             const { data: perfil, error } = await _supabase.from('perfiles_usuarios').select('*').eq('id', authUser.id).single();
             
             if (authUser.email === CORREO_MASTER) {
-                usuarioActual = { id: authUser.id, email: authUser.email, rol: 'Desarrollador', aprobado: true };
+                usuarioActual = { id: authUser.id, email: authUser.email, rol: 'Desarrollador', approved: true };
                 if (!perfil) {
                     await _supabase.from('perfiles_usuarios').insert([usuarioActual]);
                 }
@@ -509,7 +504,7 @@
             cacheFilasDrive.forEach((c) => {
                 const nroDocumento = c[7] || 'N/A'; 
                 const cliente = c[5] || 'N/A';      
-                const ruta = c[3] || 'N/A';         
+                const ruta = c[3] || 'N/A';          
                 const fechaEmision = c[1] || '';   
                 const fechaVenc = c[2] || '';      
                 const montoBs = c[14] || '0.00';    
@@ -587,46 +582,14 @@
             }
         }
 
-        // ==========================================================
-        // CÁLCULO DINÁMICO REPARADO CON LÍMITE DE CONTROL 0545 EN ADELANTE
-        // ==========================================================
-        async function abrirFormularioReporte() {
-            document.getElementById('labelProximoControl').innerText = "Calculando...";
-            try {
-                // Hacemos el filtro de ordenamiento correcto en red
-                const { data, error } = await _supabase
-                    .from('reportes_altrom')
-                    .select('nro_control')
-                    .not('nro_control', 'is', null)
-                    .order('nro_control', { ascending: false })
-                    .limit(1);
-                
-                // Si la consulta arroja una fila válida con un número guardado mayor o igual a 545
-                if (data && data.length > 0 && data[0].nro_control && parseInt(data[0].nro_control) >= 545) {
-                    proximoNumeroControlCalculado = parseInt(data[0].nro_control) + 1;
-                } else {
-                    proximoNumeroControlCalculado = 545; // Punto de partida estricto forzado
-                }
-            } catch (err) {
-                console.error("Error al calcular correlativo:", err);
-                proximoNumeroControlCalculado = 545;
-            }
-            
-            document.getElementById('labelProximoControl').innerText = String(proximoNumeroControlCalculado).padStart(4, '0');
-            document.getElementById('modalForm').classList.remove('hidden');
-        }
-
         async function cargarReportes() {
             const { data } = await _supabase.from('reportes_altrom').select('*').order('created_at', { ascending: false });
             if (data) {
                 const tabla = document.getElementById('tablaReportes');
                 tabla.innerHTML = data.map(r => {
                     const esListo = r.estado === 'LISTO';
-                    const stringControl = r.nro_control ? String(r.nro_control).padStart(4, '0') : "0000";
-                    
                     return `<tr class="border-t hover:bg-orange-50 transition-colors">
                         <td class="p-4 font-bold ${esListo ? 'text-green-600' : 'text-orange-500'}">${esListo ? '✓ LISTO' : 'PENDIENTE'}</td>
-                        <td class="p-4 font-mono font-bold text-gray-700">${stringControl}</td>
                         <td class="p-4">${r.fecha}</td>
                         <td class="p-4 font-bold uppercase text-red-700">${r.cliente}</td>
                         <td class="p-4 text-gray-500">${r.factura}</td>
@@ -641,6 +604,9 @@
             }
         }
 
+        // ==========================================
+        // 🚨 FUNCIÓN PARA ELIMINAR REPORTES DESDE EL ROL DESARROLLADOR
+        // ==========================================
         async function removerReporteSupabase(id) {
             if (confirm("¿Estás seguro de que deseas eliminar permanentemente este reporte de la base de datos de Altrom?")) {
                 try {
@@ -649,7 +615,11 @@
                         .delete()
                         .eq('id', id);
 
-                    if (error) throw error;
+                    if (error) {
+                        throw error;
+                    }
+
+                    // Refrescar el listado en pantalla automáticamente
                     cargarReportes();
                 } catch (err) {
                     console.error("Error crítico al eliminar reporte:", err.message);
@@ -674,32 +644,10 @@
                 const ins = f.querySelectorAll('input');
                 if(ins[0].value.trim() !== "") { listaProductos.push([ins[0].value.toUpperCase(), ins[1].value || 0, ins[2].value || 0, ins[3].value || 0]); }
             });
-            
-            const datos = { 
-                cliente: document.getElementById('cliente').value, 
-                fecha: document.getElementById('fecha').value, 
-                factura: document.getElementById('factura').value, 
-                ruta: document.getElementById('ruta').value, 
-                chofer: document.getElementById('chofer').value, 
-                novedad: document.getElementById('novedad').value, 
-                estado: 'PENDIENTE', 
-                tipo: JSON.stringify(listaProductos),
-                nro_control: proximoNumeroControlCalculado
-            };
-            
+            const datos = { cliente: document.getElementById('cliente').value, fecha: document.getElementById('fecha').value, factura: document.getElementById('factura').value, ruta: document.getElementById('ruta').value, chofer: document.getElementById('chofer').value, novedad: document.getElementById('novedad').value, estado: 'PENDIENTE', tipo: JSON.stringify(listaProductos) };
             const { error } = await _supabase.from('reportes_altrom').insert([datos]);
-            if (error) { 
-                alert("Error: " + error.message); 
-                btn.innerText = "REINTENTAR"; 
-                btn.disabled = false; 
-            } else { 
-                exportarPDF_Logic(datos, listaProductos, "REPORTE"); 
-                document.getElementById('modalForm').classList.add('hidden'); 
-                document.getElementById('formReporte').reset(); 
-                btn.innerText = "Guardar Reporte y Descargar PDF"; 
-                btn.disabled = false; 
-                cargarReportes(); 
-            }
+            if (error) { alert("Error: " + error.message); btn.innerText = "REINTENTAR"; btn.disabled = false; }
+            else { exportarPDF_Logic(datos, listaProductos, "REPORTE"); document.getElementById('modalForm').classList.add('hidden'); document.getElementById('formReporte').reset(); btn.innerText = "Guardar Reporte y Descargar PDF"; btn.disabled = false; cargarReportes(); }
         }
 
         function exportarPDF_Logic(data, productos, titulo) {
@@ -726,9 +674,8 @@
             
             doc.setFontSize(14);
             doc.setTextColor(COLOR_ROJO_CONTROL[0], COLOR_ROJO_CONTROL[1], COLOR_ROJO_CONTROL[2]);
-            
-            const stringNroControl = data.nro_control ? String(data.nro_control).padStart(4, '0') : "0000";
-            doc.text(stringNroControl, 185, 23, { align: "right" });
+            const nroControl = data.factura ? data.factura.slice(-4).padStart(4, '0') : "0000";
+            doc.text(nroControl, 185, 23, { align: "right" });
 
             doc.setDrawColor(COLOR_LINEA_AZUL[0], COLOR_LINEA_AZUL[1], COLOR_LINEA_AZUL[2]);
             doc.setLineWidth(0.3);
@@ -736,12 +683,14 @@
             doc.setFontSize(8);
             doc.setTextColor(COLOR_TEXTO_NEGRO[0], COLOR_TEXTO_NEGRO[1], COLOR_TEXTO_NEGRO[2]);
 
+            // Fila 1: CLIENTE
             doc.rect(16, 32, 35, 7); 
             doc.text("CLIENTE O PROVEEDOR", 18, 36.5);
             doc.rect(51, 32, 143, 7); 
             doc.setFont("helvetica", "normal");
             doc.text((data.cliente || '').toUpperCase(), 54, 36.5);
 
+            // Fila 2: NRO. FACTURA
             doc.setFont("helvetica", "bold");
             doc.rect(16, 39, 35, 7);
             doc.text("NRO. FACTURA O NE", 18, 43.5);
@@ -749,6 +698,7 @@
             doc.setFont("helvetica", "normal");
             doc.text((data.factura || '').toUpperCase(), 54, 43.5);
 
+            // Fila 3: FECHA
             doc.setFont("helvetica", "bold");
             doc.rect(16, 46, 35, 7);
             doc.text("FECHA", 18, 50.5);
@@ -756,6 +706,7 @@
             doc.setFont("helvetica", "normal");
             doc.text(data.fecha || '', 54, 50.5);
 
+            // Fila 4: RUTA
             doc.setFont("helvetica", "bold");
             doc.rect(16, 53, 35, 7);
             doc.text("RUTA", 18, 57.5);
@@ -763,6 +714,7 @@
             doc.setFont("helvetica", "normal");
             doc.text((data.ruta || '').toUpperCase(), 54, 57.5);
 
+            // TIPO DE MERCANCIA casillas
             doc.setFont("helvetica", "bold");
             doc.text("TIPO DE MERCANCIA", 16, 66);
             doc.rect(16, 69, 30, 6);
@@ -833,7 +785,7 @@
                     1: { cellWidth: 24, halign: 'center' }, 
                     2: { cellWidth: 26, halign: 'center' }, 
                     3: { cellWidth: 24, halign: 'center' }, 
-                    4: { halign: 'left' }                   
+                    4: { halign: 'left' }                    
                 },
                 didParseCell: function (d) {
                     if (d.row.index === filasTabla.length - 1) {
