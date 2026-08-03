@@ -488,6 +488,31 @@
             procesarTablaPedidos();
         }
 
+        // HELPER PARA CONVERTIR FECHAS SERIALES DE EXCEL EN TEXTO LEGIBLE (DD/MM/YYYY)
+        function convertirFechaExcelATexto(val) {
+            if (!val) return '';
+            // Si ya viene formateado como texto "09/06/2026", "2026-06-09", etc.
+            if (typeof val === 'string' && val.includes('/')) return val;
+            if (typeof val === 'string' && val.includes('-')) {
+                const partes = val.split('T')[0].split('-');
+                if(partes.length === 3) return `${partes[2]}/${partes[1]}/${partes[0]}`;
+                return val;
+            }
+            
+            // Si viene en formato numérico de serie de Excel (ej: 46270.99)
+            const num = parseFloat(val);
+            if (!isNaN(num) && num > 30000) {
+                const dateObj = XLSX.SSF.parse_date_code(num);
+                if (dateObj) {
+                    const dia = String(dateObj.d).padStart(2, '0');
+                    const mes = String(dateObj.m).padStart(2, '0');
+                    const anio = dateObj.y;
+                    return `${dia}/${mes}/${anio}`;
+                }
+            }
+            return String(val);
+        }
+
         // ==========================================================
         // NUEVA LÓGICA DE IMPORTACIÓN MANUAL Y GESTIÓN DE LOTES
         // ==========================================================
@@ -515,8 +540,8 @@
                         const row = jsonRows[i];
                         if (!row || row.length === 0) continue;
 
-                        const fechaEmision = row[1] ? String(row[1]) : '';
-                        const fechaVenc = row[2] ? String(row[2]) : '';
+                        const fechaEmision = convertirFechaExcelATexto(row[1]);
+                        const fechaVenc = convertirFechaExcelATexto(row[2]);
                         const ruta = row[3] ? String(row[3]) : 'N/A';
                         const cliente = row[5] ? String(row[5]) : 'N/A';
                         const nroDoc = row[7] ? String(row[7]) : '';
@@ -537,15 +562,12 @@
                     }
 
                     if (filasNuevas.length > 0) {
-                        // Persistir el lote de facturas cargado en Supabase
                         const { error } = await _supabase.from('lotes_facturas_altrom').insert(filasNuevas);
                         if (error) {
-                            console.warn("Tabla de lotes no detectada o error de inserción. Mostrando en memoria local:", error.message);
+                            console.warn("Tabla de lotes no detectada o error de inserción:", error.message);
                         }
                         
-                        cacheFilasDrive = cacheFilasDrive.concat(filasNuevas);
-                        await syncFacturasSupabase();
-                        procesarTablaPedidos();
+                        await cargarLotesFacturasGuardados();
                         alert(`¡Éxito! Se cargaron ${filasNuevas.length} registros del archivo ${file.name}.`);
                     } else {
                         alert("No se identificaron filas válidas con la estructura del reporte.");
@@ -561,18 +583,21 @@
         async function cargarLotesFacturasGuardados() {
             try {
                 await syncFacturasSupabase();
-                const { data } = await _supabase.from('lotes_facturas_altrom').select('*').order('created_at', { ascending: false });
+                const { data, error } = await _supabase.from('lotes_facturas_altrom').select('*').order('id', { ascending: true });
                 if (data && data.length > 0) {
                     cacheFilasDrive = data;
-                    procesarTablaPedidos();
+                } else {
+                    cacheFilasDrive = [];
                 }
+                procesarTablaPedidos();
             } catch (err) {
                 console.log("Servicio de lotes listo para primera carga.");
+                procesarTablaPedidos();
             }
         }
 
         async function eliminarLotesFacturas() {
-            if (confirm("¿Deseas limpiar las tandas de facturas importadas en la pantalla?")) {
+            if (confirm("¿Deseas limpiar todas las tandas de facturas importadas de la pantalla y la base de datos?")) {
                 try {
                     await _supabase.from('lotes_facturas_altrom').delete().neq('id', 0);
                 } catch(e) {}
@@ -599,8 +624,8 @@
                             nro_doc: c[7] || 'N/A',
                             cliente: c[5] || 'N/A',
                             ruta: c[3] || 'N/A',
-                            fecha_emision: c[1] || '',
-                            fecha_venc: c[2] || '',
+                            fecha_emision: convertirFechaExcelATexto(c[1]),
+                            fecha_venc: convertirFechaExcelATexto(c[2]),
                             monto_bs: c[14] || '0.00',
                             monto_usd: c[15] || '0.00'
                         }); 
@@ -621,8 +646,8 @@
                 const nroDocumento = item.nro_doc || item[7] || 'N/A'; 
                 const cliente = item.cliente || item[5] || 'N/A';      
                 const ruta = item.ruta || item[3] || 'N/A';         
-                const fechaEmision = item.fecha_emision || item[1] || '';   
-                const fechaVenc = item.fecha_venc || item[2] || '';      
+                const fechaEmision = convertirFechaExcelATexto(item.fecha_emision || item[1]);   
+                const fechaVenc = convertirFechaExcelATexto(item.fecha_venc || item[2]);      
                 const montoBs = item.monto_bs || item[14] || '0.00';    
                 const montoUSD = item.monto_usd || item[15] || '0.00';   
 
@@ -694,6 +719,7 @@
             } else {
                 document.getElementById('seccionPedidos').classList.remove('hidden-content');
                 document.getElementById('btnTabPedidos').className = "py-4 text-xs font-bold uppercase tracking-widest tab-active transition-all";
+                cargarLotesFacturasGuardados(); // Carga las facturas de Supabase al cambiar de pestaña
             }
         }
 
