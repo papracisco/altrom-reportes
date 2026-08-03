@@ -10,6 +10,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- LIBRERÍA SHEETJS PARA PROCESAR ARCHIVOS EXCEL (.XLSX Y .CSV) LOCALES -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
     <style>
         body { font-family: 'Montserrat', sans-serif; overflow-x: hidden; }
@@ -164,7 +166,7 @@
             <div id="seccionPedidos" class="hidden-content">
                 <div class="mb-10">
                     <h1 class="font-reporte text-5xl text-red-700 uppercase">Control de <br> Pedidos y Facturación</h1>
-                    <p class="text-orange-altrom font-bold uppercase text-[10px] tracking-[0.3em] mt-2 italic">Sincronizado con Logística Drive</p>
+                    <p class="text-orange-altrom font-bold uppercase text-[10px] tracking-[0.3em] mt-2 italic">Importación Directa de Archivos Excel / CSV</p>
                 </div>
 
                 <div class="bg-white rounded-3xl shadow-sm border p-6">
@@ -173,9 +175,16 @@
                             <input type="text" id="buscadorPedidos" onkeyup="filtrarPedidos()" placeholder="Buscar Factura o Cliente..." class="w-full p-3 pl-10 rounded-xl bg-gray-50 border border-gray-100 text-sm outline-none focus:ring-2 focus:ring-orange-500 uppercase">
                             <span class="absolute left-3 top-3.5 opacity-30">🔍</span>
                         </div>
-                        <div id="statusDrive" class="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase">
-                            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                            Conexión activa con Drive
+                        
+                        <!-- BOTONES DE IMPORTACIÓN MANUAL Y LIMPIEZA DE LOTES -->
+                        <div class="flex items-center gap-3">
+                            <input type="file" id="inputArchivoExcel" accept=".xlsx, .xls, .csv" class="hidden" onchange="procesarArchivoExcelLocal(event)">
+                            <button onclick="document.getElementById('inputArchivoExcel').click()" class="px-5 py-3 bg-orange-altrom hover:bg-red-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2">
+                                📥 Importar Excel / CSV
+                            </button>
+                            <button onclick="eliminarLotesFacturas()" class="px-4 py-3 bg-gray-800 hover:bg-black text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md">
+                                🗑️ Limpiar Lotes
+                            </button>
                         </div>
                     </div>
 
@@ -195,7 +204,7 @@
                                 </tr>
                             </thead>
                             <tbody id="tablaPedidos">
-                                <tr><td colspan="9" class="p-10 text-center text-gray-400 font-bold uppercase tracking-widest">Cargando datos maestros desde Drive...</td></tr>
+                                <tr><td colspan="9" class="p-10 text-center text-gray-400 font-bold uppercase tracking-widest">Sin registros activos. Haz clic en "Importar Excel / CSV" para cargar facturas.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -357,6 +366,7 @@
             }
 
             cargarReportes();
+            cargarLotesFacturasGuardados();
         }
 
         async function handleLogin() {
@@ -465,7 +475,7 @@
             } else {
                 await _supabase.from('control_facturas').insert([{ id_factura: idFactura, estatus: valor, recibido_cb: false }]);
             }
-            cargarPedidosExcel(); 
+            procesarTablaPedidos(); 
         }
 
         async function modificarTildeRecibidoCB(idFactura, tildado) {
@@ -475,10 +485,104 @@
             } else {
                 await _supabase.from('control_facturas').insert([{ id_factura: idFactura, estatus: 'PENDIENTE', recibido_cb: tildado }]);
             }
-            cargarPedidosExcel();
+            procesarTablaPedidos();
         }
 
-        async function cargarPedidosExcel() {
+        // ==========================================================
+        // NUEVA LÓGICA DE IMPORTACIÓN MANUAL Y GESTIÓN DE LOTES
+        // ==========================================================
+        async function procesarArchivoExcelLocal(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                    if (jsonRows.length <= 1) {
+                        alert("El archivo no contiene filas de datos.");
+                        return;
+                    }
+
+                    const filasNuevas = [];
+                    // Saltamos la fila 0 (Encabezados)
+                    for (let i = 1; i < jsonRows.length; i++) {
+                        const row = jsonRows[i];
+                        if (!row || row.length === 0) continue;
+
+                        const fechaEmision = row[1] ? String(row[1]) : '';
+                        const fechaVenc = row[2] ? String(row[2]) : '';
+                        const ruta = row[3] ? String(row[3]) : 'N/A';
+                        const cliente = row[5] ? String(row[5]) : 'N/A';
+                        const nroDoc = row[7] ? String(row[7]) : '';
+                        const montoBs = row[14] ? String(row[14]) : '0.00';
+                        const montoUSD = row[15] ? String(row[15]) : '0.00';
+
+                        if (nroDoc) {
+                            filasNuevas.push({
+                                nro_doc: nroDoc,
+                                cliente: cliente,
+                                ruta: ruta,
+                                fecha_emision: fechaEmision,
+                                fecha_venc: fechaVenc,
+                                monto_bs: montoBs,
+                                monto_usd: montoUSD
+                            });
+                        }
+                    }
+
+                    if (filasNuevas.length > 0) {
+                        // Persistir el lote de facturas cargado en Supabase
+                        const { error } = await _supabase.from('lotes_facturas_altrom').insert(filasNuevas);
+                        if (error) {
+                            console.warn("Tabla de lotes no detectada o error de inserción. Mostrando en memoria local:", error.message);
+                        }
+                        
+                        cacheFilasDrive = cacheFilasDrive.concat(filasNuevas);
+                        await syncFacturasSupabase();
+                        procesarTablaPedidos();
+                        alert(`¡Éxito! Se cargaron ${filasNuevas.length} registros del archivo ${file.name}.`);
+                    } else {
+                        alert("No se identificaron filas válidas con la estructura del reporte.");
+                    }
+                } catch (err) {
+                    console.error("Error al procesar el archivo Excel:", err);
+                    alert("Error al leer el archivo. Asegúrate de importar un formato .XLSX o .CSV válido.");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        async function cargarLotesFacturasGuardados() {
+            try {
+                await syncFacturasSupabase();
+                const { data } = await _supabase.from('lotes_facturas_altrom').select('*').order('created_at', { ascending: false });
+                if (data && data.length > 0) {
+                    cacheFilasDrive = data;
+                    procesarTablaPedidos();
+                }
+            } catch (err) {
+                console.log("Servicio de lotes listo para primera carga.");
+            }
+        }
+
+        async function eliminarLotesFacturas() {
+            if (confirm("¿Deseas limpiar las tandas de facturas importadas en la pantalla?")) {
+                try {
+                    await _supabase.from('lotes_facturas_altrom').delete().neq('id', 0);
+                } catch(e) {}
+                cacheFilasDrive = [];
+                procesarTablaPedidos();
+            }
+        }
+
+        // MANTENIDO EN SEGUNDO PLANO (RESPALDO DRIVE)
+        async function cargarPedidosExcelDrive() {
             const tabla = document.getElementById('tablaPedidos');
             try {
                 await syncFacturasSupabase(); 
@@ -490,13 +594,22 @@
                 cacheFilasDrive = [];
                 filas.forEach(linea => {
                     const c = linea.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(x => x.replace(/"/g, '').trim());
-                    if (c.length >= 16) { cacheFilasDrive.push(c); }
+                    if (c.length >= 16) { 
+                        cacheFilasDrive.push({
+                            nro_doc: c[7] || 'N/A',
+                            cliente: c[5] || 'N/A',
+                            ruta: c[3] || 'N/A',
+                            fecha_emision: c[1] || '',
+                            fecha_venc: c[2] || '',
+                            monto_bs: c[14] || '0.00',
+                            monto_usd: c[15] || '0.00'
+                        }); 
+                    }
                 });
                 
                 procesarTablaPedidos();
             } catch (e) {
                 console.error(e);
-                tabla.innerHTML = '<tr><td colspan="9" class="p-4 text-center text-red-500 font-bold">Error de lectura maestro en red.</td></tr>';
             }
         }
 
@@ -504,14 +617,14 @@
             const tabla = document.getElementById('tablaPedidos');
             let html = '';
             
-            cacheFilasDrive.forEach((c) => {
-                const nroDocumento = c[7] || 'N/A'; 
-                const cliente = c[5] || 'N/A';      
-                const ruta = c[3] || 'N/A';         
-                const fechaEmision = c[1] || '';   
-                const fechaVenc = c[2] || '';      
-                const montoBs = c[14] || '0.00';    
-                const montoUSD = c[15] || '0.00';   
+            cacheFilasDrive.forEach((item) => {
+                const nroDocumento = item.nro_doc || item[7] || 'N/A'; 
+                const cliente = item.cliente || item[5] || 'N/A';      
+                const ruta = item.ruta || item[3] || 'N/A';         
+                const fechaEmision = item.fecha_emision || item[1] || '';   
+                const fechaVenc = item.fecha_venc || item[2] || '';      
+                const montoBs = item.monto_bs || item[14] || '0.00';    
+                const montoUSD = item.monto_usd || item[15] || '0.00';   
 
                 const datosDB = mapaFacturasDB[nroDocumento] || { estatus: 'PENDIENTE', recibido_cb: false };
                 const status = datosDB.estatus;
@@ -554,7 +667,7 @@
                     </tr>`;
             });
             
-            tabla.innerHTML = html || '<tr><td colspan="9" class="p-4 text-center">No se encontraron registros activos.</td></tr>';
+            tabla.innerHTML = html || '<tr><td colspan="9" class="p-10 text-center text-gray-400 font-bold uppercase tracking-widest">Sin registros activos. Haz clic en "Importar Excel / CSV" para cargar facturas.</td></tr>';
         }
 
         function filtrarPedidos() {
@@ -581,7 +694,6 @@
             } else {
                 document.getElementById('seccionPedidos').classList.remove('hidden-content');
                 document.getElementById('btnTabPedidos').className = "py-4 text-xs font-bold uppercase tracking-widest tab-active transition-all";
-                cargarPedidosExcel();
             }
         }
 
