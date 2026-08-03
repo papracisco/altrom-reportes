@@ -166,7 +166,7 @@
             <div id="seccionPedidos" class="hidden-content">
                 <div class="mb-10">
                     <h1 class="font-reporte text-5xl text-red-700 uppercase">Control de <br> Pedidos y Facturación</h1>
-                    <p class="text-orange-altrom font-bold uppercase text-[10px] tracking-[0.3em] mt-2 italic">Importación Directa de Archivos Excel / CSV</p>
+                    <p class="text-orange-altrom font-bold uppercase text-[10px] tracking-[0.3em] mt-2 italic">Importación Directa de Archivos Excel / CSV (Facturas Unificadas)</p>
                 </div>
 
                 <div class="bg-white rounded-3xl shadow-sm border p-6">
@@ -197,8 +197,8 @@
                                     <th class="p-4">Ruta</th>
                                     <th class="p-4">Emisión</th>
                                     <th class="p-4">Vencimiento</th>
-                                    <th class="p-4 text-right">Monto Bs</th>
-                                    <th class="p-4 text-right">Monto $</th>
+                                    <th class="p-4 text-right">Monto Bs Total</th>
+                                    <th class="p-4 text-right">Monto $ Total</th>
                                     <th class="p-4 text-center">Estatus</th>
                                     <th class="p-4 text-center">Recibido CB</th>
                                 </tr>
@@ -469,6 +469,9 @@
         }
 
         async function modificarEstatusFacturaDB(idFactura, valor) {
+            if (!mapaFacturasDB[idFactura]) mapaFacturasDB[idFactura] = { estatus: 'PENDIENTE', recibido_cb: false };
+            mapaFacturasDB[idFactura].estatus = valor;
+
             const { data } = await _supabase.from('control_facturas').select('id_factura').eq('id_factura', idFactura);
             if (data && data.length > 0) {
                 await _supabase.from('control_facturas').update({ estatus: valor }).eq('id_factura', idFactura);
@@ -478,20 +481,36 @@
             procesarTablaPedidos(); 
         }
 
+        // ==========================================================
+        // CHECKBOX DE RECIBIDO CB ACTUALIZADO EN TIEMPO REAL INSTANTÁNEO
+        // ==========================================================
         async function modificarTildeRecibidoCB(idFactura, tildado) {
+            // Actualización inmediata en la memoria local para respuesta instantánea de la UI
+            if (!mapaFacturasDB[idFactura]) mapaFacturasDB[idFactura] = { estatus: 'PENDIENTE', recibido_cb: false };
+            mapaFacturasDB[idFactura].recibido_cb = tildado;
+            
+            // Re-renderizado instantáneo en el DOM local sin refrescar ni demoras
+            procesarTablaPedidos();
+
+            // Sincronización asíncrona en segundo plano con Supabase
             const { data } = await _supabase.from('control_facturas').select('id_factura').eq('id_factura', idFactura);
             if (data && data.length > 0) {
                 await _supabase.from('control_facturas').update({ recibido_cb: tildado }).eq('id_factura', idFactura);
             } else {
                 await _supabase.from('control_facturas').insert([{ id_factura: idFactura, estatus: 'PENDIENTE', recibido_cb: tildado }]);
             }
-            procesarTablaPedidos();
         }
 
-        // HELPER PARA CONVERTIR FECHAS SERIALES DE EXCEL EN TEXTO LEGIBLE (DD/MM/YYYY)
+        function limpiarMonto(val) {
+            if (val === null || val === undefined) return 0;
+            if (typeof val === 'number') return val;
+            let str = String(val).trim().replace(/\./g, '').replace(',', '.');
+            let num = parseFloat(str);
+            return isNaN(num) ? 0 : num;
+        }
+
         function convertirFechaExcelATexto(val) {
             if (!val) return '';
-            // Si ya viene formateado como texto "09/06/2026", "2026-06-09", etc.
             if (typeof val === 'string' && val.includes('/')) return val;
             if (typeof val === 'string' && val.includes('-')) {
                 const partes = val.split('T')[0].split('-');
@@ -499,7 +518,6 @@
                 return val;
             }
             
-            // Si viene en formato numérico de serie de Excel (ej: 46270.99)
             const num = parseFloat(val);
             if (!isNaN(num) && num > 30000) {
                 const dateObj = XLSX.SSF.parse_date_code(num);
@@ -514,7 +532,7 @@
         }
 
         // ==========================================================
-        // NUEVA LÓGICA DE IMPORTACIÓN MANUAL Y GESTIÓN DE LOTES
+        // NUEVA LÓGICA DE IMPORTACIÓN Y UNIFICACIÓN DE FACTURAS
         // ==========================================================
         async function procesarArchivoExcelLocal(event) {
             const file = event.target.files[0];
@@ -534,32 +552,48 @@
                         return;
                     }
 
-                    const filasNuevas = [];
-                    // Saltamos la fila 0 (Encabezados)
+                    const mapaAgrupado = {};
+
+                    // Unificación y suma de ítems pertenecientes a la misma factura
                     for (let i = 1; i < jsonRows.length; i++) {
                         const row = jsonRows[i];
                         if (!row || row.length === 0) continue;
 
+                        const nroDoc = row[7] ? String(row[7]).trim() : '';
+                        if (!nroDoc) continue;
+
                         const fechaEmision = convertirFechaExcelATexto(row[1]);
                         const fechaVenc = convertirFechaExcelATexto(row[2]);
-                        const ruta = row[3] ? String(row[3]) : 'N/A';
-                        const cliente = row[5] ? String(row[5]) : 'N/A';
-                        const nroDoc = row[7] ? String(row[7]) : '';
-                        const montoBs = row[14] ? String(row[14]) : '0.00';
-                        const montoUSD = row[15] ? String(row[15]) : '0.00';
+                        const ruta = row[3] ? String(row[3]).trim() : 'N/A';
+                        const cliente = row[5] ? String(row[5]).trim() : 'N/A';
+                        const montoBsVal = limpiarMonto(row[14]);
+                        const montoUSDVal = limpiarMonto(row[15]);
 
-                        if (nroDoc) {
-                            filasNuevas.push({
+                        if (!mapaAgrupado[nroDoc]) {
+                            mapaAgrupado[nroDoc] = {
                                 nro_doc: nroDoc,
                                 cliente: cliente,
                                 ruta: ruta,
                                 fecha_emision: fechaEmision,
                                 fecha_venc: fechaVenc,
-                                monto_bs: montoBs,
-                                monto_usd: montoUSD
-                            });
+                                monto_bs_num: 0,
+                                monto_usd_num: 0
+                            };
                         }
+
+                        mapaAgrupado[nroDoc].monto_bs_num += montoBsVal;
+                        mapaAgrupado[nroDoc].monto_usd_num += montoUSDVal;
                     }
+
+                    const filasNuevas = Object.values(mapaAgrupado).map(item => ({
+                        nro_doc: item.nro_doc,
+                        cliente: item.cliente,
+                        ruta: item.ruta,
+                        fecha_emision: item.fecha_emision,
+                        fecha_venc: item.fecha_venc,
+                        monto_bs: item.monto_bs_num.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                        monto_usd: item.monto_usd_num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    }));
 
                     if (filasNuevas.length > 0) {
                         const { error } = await _supabase.from('lotes_facturas_altrom').insert(filasNuevas);
@@ -568,7 +602,7 @@
                         }
                         
                         await cargarLotesFacturasGuardados();
-                        alert(`¡Éxito! Se cargaron ${filasNuevas.length} registros del archivo ${file.name}.`);
+                        alert(`¡Éxito! Se procesaron y unificaron ${filasNuevas.length} facturas únicas desde el archivo ${file.name}.`);
                     } else {
                         alert("No se identificaron filas válidas con la estructura del reporte.");
                     }
@@ -583,9 +617,24 @@
         async function cargarLotesFacturasGuardados() {
             try {
                 await syncFacturasSupabase();
-                const { data, error } = await _supabase.from('lotes_facturas_altrom').select('*').order('id', { ascending: true });
+                const { data } = await _supabase.from('lotes_facturas_altrom').select('*').order('id', { ascending: true });
                 if (data && data.length > 0) {
-                    cacheFilasDrive = data;
+                    // Unificar en caso de que existan registros duplicados en DB
+                    const mapaUnico = {};
+                    data.forEach(item => {
+                        const docKey = item.nro_doc;
+                        if (!mapaUnico[docKey]) {
+                            mapaUnico[docKey] = { ...item };
+                        } else {
+                            let bs1 = limpiarMonto(mapaUnico[docKey].monto_bs);
+                            let bs2 = limpiarMonto(item.monto_bs);
+                            let usd1 = limpiarMonto(mapaUnico[docKey].monto_usd);
+                            let usd2 = limpiarMonto(item.monto_usd);
+                            mapaUnico[docKey].monto_bs = (bs1 + bs2).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            mapaUnico[docKey].monto_usd = (usd1 + usd2).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        }
+                    });
+                    cacheFilasDrive = Object.values(mapaUnico);
                 } else {
                     cacheFilasDrive = [];
                 }
@@ -608,7 +657,6 @@
 
         // MANTENIDO EN SEGUNDO PLANO (RESPALDO DRIVE)
         async function cargarPedidosExcelDrive() {
-            const tabla = document.getElementById('tablaPedidos');
             try {
                 await syncFacturasSupabase(); 
                 const respuesta = await fetch(URL_EXCEL_CSV);
@@ -616,21 +664,37 @@
                 const texto = await respuesta.text();
                 const filas = texto.split('\n').slice(1);
                 
-                cacheFilasDrive = [];
+                const mapaAgrupadoDrive = {};
+
                 filas.forEach(linea => {
                     const c = linea.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(x => x.replace(/"/g, '').trim());
                     if (c.length >= 16) { 
-                        cacheFilasDrive.push({
-                            nro_doc: c[7] || 'N/A',
-                            cliente: c[5] || 'N/A',
-                            ruta: c[3] || 'N/A',
-                            fecha_emision: convertirFechaExcelATexto(c[1]),
-                            fecha_venc: convertirFechaExcelATexto(c[2]),
-                            monto_bs: c[14] || '0.00',
-                            monto_usd: c[15] || '0.00'
-                        }); 
+                        const nroDoc = c[7] || 'N/A';
+                        if (!mapaAgrupadoDrive[nroDoc]) {
+                            mapaAgrupadoDrive[nroDoc] = {
+                                nro_doc: nroDoc,
+                                cliente: c[5] || 'N/A',
+                                ruta: c[3] || 'N/A',
+                                fecha_emision: convertirFechaExcelATexto(c[1]),
+                                fecha_venc: convertirFechaExcelATexto(c[2]),
+                                monto_bs_num: 0,
+                                monto_usd_num: 0
+                            };
+                        }
+                        mapaAgrupadoDrive[nroDoc].monto_bs_num += limpiarMonto(c[14]);
+                        mapaAgrupadoDrive[nroDoc].monto_usd_num += limpiarMonto(c[15]);
                     }
                 });
+                
+                cacheFilasDrive = Object.values(mapaAgrupadoDrive).map(item => ({
+                    nro_doc: item.nro_doc,
+                    cliente: item.cliente,
+                    ruta: item.ruta,
+                    fecha_emision: item.fecha_emision,
+                    fecha_venc: item.fecha_venc,
+                    monto_bs: item.monto_bs_num.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                    monto_usd: item.monto_usd_num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                }));
                 
                 procesarTablaPedidos();
             } catch (e) {
@@ -719,7 +783,7 @@
             } else {
                 document.getElementById('seccionPedidos').classList.remove('hidden-content');
                 document.getElementById('btnTabPedidos').className = "py-4 text-xs font-bold uppercase tracking-widest tab-active transition-all";
-                cargarLotesFacturasGuardados(); // Carga las facturas de Supabase al cambiar de pestaña
+                cargarLotesFacturasGuardados();
             }
         }
 
