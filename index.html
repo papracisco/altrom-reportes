@@ -73,23 +73,26 @@
 
     <div id="contenidoWeb" class="hidden-content">
         
+        <!-- SIDEBAR DE ADMINISTRADOR Y AUDITORÍA -->
         <div id="sidebarAdmin" class="sidebar fixed top-0 left-0 bottom-0 w-80 bg-gray-900 text-white z-50 transform -translate-x-full shadow-2xl flex flex-col border-r border-gray-800">
             <div class="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-950">
                 <div>
                     <h3 class="font-reporte text-xl text-orange-altrom uppercase">Panel Master</h3>
-                    <p class="text-[9px] tracking-widest text-gray-500 font-bold uppercase">Gestión de Personal</p>
+                    <p class="text-[9px] tracking-widest text-gray-500 font-bold uppercase">Gestión y Auditoría</p>
                 </div>
                 <button onclick="toggleSidebar(false)" class="text-gray-400 text-2xl font-bold hover:text-white">&times;</button>
             </div>
             
-            <div class="flex border-b border-gray-800 bg-gray-950 text-center text-[10px] font-bold uppercase tracking-wider">
+            <div class="flex border-b border-gray-800 bg-gray-950 text-center text-[9px] font-bold uppercase tracking-wider">
                 <button onclick="switchSidebarTab('subTabSolicitudes')" id="btnSubTabSol" class="flex-1 py-3 text-orange-500 border-b-2 border-orange-500">Solicitudes</button>
                 <button onclick="switchSidebarTab('subTabActivos')" id="btnSubTabAct" class="flex-1 py-3 text-gray-500">Registrados</button>
+                <button onclick="switchSidebarTab('subTabAuditoria')" id="btnSubTabAud" class="flex-1 py-3 text-gray-500">Auditoría</button>
             </div>
 
             <div class="flex-1 overflow-y-auto p-4 space-y-4">
                 <div id="subTabSolicitudes" class="space-y-3"></div>
                 <div id="subTabActivos" class="hidden-content space-y-3"></div>
+                <div id="subTabAuditoria" class="hidden-content space-y-3"></div>
             </div>
         </div>
 
@@ -284,6 +287,54 @@
 
         const URL_EXCEL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQsxuDV_DUkyPLWCVXcP9QpPt8c1yy9mzPuZ_mWmhXOP16uSAIbcyZmxph4YlcFAg/pub?output=csv";
 
+        // ==========================================================
+        // SISTEMA GLOBAL DE AUDITORÍA DE EVENTOS
+        // ==========================================================
+        async function registrarAuditoria(accion, detalles = "") {
+            if (!usuarioActual) return;
+            const logData = {
+                usuario: usuarioActual.email ? usuarioActual.email.split('@')[0] : 'Desconocido',
+                rol: usuarioActual.rol || 'N/A',
+                accion: accion,
+                detalles: detalles
+            };
+            try {
+                await _supabase.from('auditoria_altrom').insert([logData]);
+            } catch (err) {
+                console.error("Error al registrar auditoría:", err);
+            }
+        }
+
+        async function fetchLogsAuditoria() {
+            const container = document.getElementById('subTabAuditoria');
+            container.innerHTML = '<p class="text-xs text-gray-500 italic text-center pt-4">Cargando registros de auditoría...</p>';
+            
+            const { data, error } = await _supabase
+                .from('auditoria_altrom')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(50);
+                
+            if (data && data.length > 0) {
+                container.innerHTML = data.map(log => {
+                    const fechaObj = new Date(log.created_at);
+                    const fechaStr = fechaObj.toLocaleDateString('es-VE') + ' ' + fechaObj.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+                    
+                    return `
+                        <div class="p-3 bg-gray-800 rounded-xl border border-gray-700 text-xs text-gray-300">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="font-bold text-orange-400">${log.usuario} <span class="text-[9px] text-gray-400">(${log.rol})</span></span>
+                                <span class="text-[8px] text-gray-500">${fechaStr}</span>
+                            </div>
+                            <p class="font-semibold text-white uppercase text-[10px]">${log.accion}</p>
+                            ${log.detalles ? `<p class="text-[9px] text-gray-400 italic mt-0.5">${log.detalles}</p>` : ''}
+                        </div>`;
+                }).join('');
+            } else {
+                container.innerHTML = '<p class="text-xs text-gray-500 italic text-center pt-4">No hay logs de auditoría aún.</p>';
+            }
+        }
+
         function toggleSidebar(open) {
             const side = document.getElementById('sidebarAdmin');
             side.style.transform = open ? 'translateX(0)' : 'translateX(-100%)';
@@ -293,14 +344,21 @@
         function switchSidebarTab(tabId) {
             document.getElementById('subTabSolicitudes').classList.add('hidden-content');
             document.getElementById('subTabActivos').classList.add('hidden-content');
+            document.getElementById('subTabAuditoria').classList.add('hidden-content');
+            
             document.getElementById('btnSubTabSol').className = "flex-1 py-3 text-gray-500";
             document.getElementById('btnSubTabAct').className = "flex-1 py-3 text-gray-500";
+            document.getElementById('btnSubTabAud').className = "flex-1 py-3 text-gray-500";
 
             document.getElementById(tabId).classList.remove('hidden-content');
+            
             if(tabId === 'subTabSolicitudes') {
                 document.getElementById('btnSubTabSol').className = "flex-1 py-3 text-orange-500 border-b-2 border-orange-500";
-            } else {
+            } else if(tabId === 'subTabActivos') {
                 document.getElementById('btnSubTabAct').className = "flex-1 py-3 text-orange-500 border-b-2 border-orange-500";
+            } else if(tabId === 'subTabAuditoria') {
+                document.getElementById('btnSubTabAud').className = "flex-1 py-3 text-orange-500 border-b-2 border-orange-500";
+                fetchLogsAuditoria();
             }
         }
 
@@ -330,6 +388,7 @@
                     await _supabase.from('perfiles_usuarios').insert([usuarioActual]);
                 }
                 inicializarEntornoWeb();
+                registrarAuditoria("INICIO_SESION", "Ingreso como Desarrollador Master");
                 return;
             }
 
@@ -348,6 +407,7 @@
 
             usuarioActual = perfil;
             inicializarEntornoWeb();
+            registrarAuditoria("INICIO_SESION", `Ingreso al sistema con rol ${perfil.rol}`);
         }
 
         function inicializarEntornoWeb() {
@@ -399,6 +459,7 @@
         }
 
         async function handleLogout() {
+            if(usuarioActual) registrarAuditoria("CIERRE_SESION", "Cerró sesión en la plataforma");
             await _supabase.auth.signOut();
             location.reload();
         }
@@ -421,8 +482,8 @@
                                 <p class="font-bold text-orange-400 break-all">${u.email}</p>
                                 <p class="text-[9px] text-gray-400 uppercase mt-0.5">Rol solicitado: ${u.rol}</p>
                                 <div class="flex gap-2 mt-3">
-                                    <button onclick="procesarSolicitudUser('${u.id}', true)" class="flex-1 py-1 bg-green-600 rounded text-[9px] font-bold uppercase">Aprobar</button>
-                                    <button onclick="procesarSolicitudUser('${u.id}', false)" class="flex-1 py-1 bg-red-600 rounded text-[9px] font-bold uppercase">Denegar</button>
+                                    <button onclick="procesarSolicitudUser('${u.id}', true, '${u.email}')" class="flex-1 py-1 bg-green-600 rounded text-[9px] font-bold uppercase">Aprobar</button>
+                                    <button onclick="procesarSolicitudUser('${u.id}', false, '${u.email}')" class="flex-1 py-1 bg-red-600 rounded text-[9px] font-bold uppercase">Denegar</button>
                                 </div>
                             </div>`;
                     } else {
@@ -432,7 +493,7 @@
                                     <p class="font-bold text-gray-300 break-all">${u.email.split('@')[0]}</p>
                                     <p class="text-[9px] text-gray-500 uppercase">${u.rol}</p>
                                 </div>
-                                <button onclick="eliminarCuentaUsuario('${u.id}')" class="bg-red-900 text-red-200 px-2 py-1 rounded text-[9px] font-bold hover:bg-red-700">BORRAR</button>
+                                <button onclick="eliminarCuentaUsuario('${u.id}', '${u.email}')" class="bg-red-900 text-red-200 px-2 py-1 rounded text-[9px] font-bold hover:bg-red-700">BORRAR</button>
                             </div>`;
                     }
                 });
@@ -442,18 +503,21 @@
             }
         }
 
-        async function procesarSolicitudUser(id, approve) {
+        async function procesarSolicitudUser(id, approve, targetEmail) {
             if(approve) {
                 await _supabase.from('perfiles_usuarios').update({ aprobado: true }).eq('id', id);
+                registrarAuditoria("APROBAR_USUARIO", `Aprobó acceso a ${targetEmail}`);
             } else {
                 await _supabase.from('perfiles_usuarios').delete().eq('id', id);
+                registrarAuditoria("DENEGAR_USUARIO", `Denegó acceso a ${targetEmail}`);
             }
             fetchGestionUsuarios();
         }
 
-        async function eliminarCuentaUsuario(id) {
+        async function eliminarCuentaUsuario(id, targetEmail) {
             if(confirm("¿Deseas remover permanentemente el acceso a este usuario?")) {
                 await _supabase.from('perfiles_usuarios').delete().eq('id', id);
+                registrarAuditoria("ELIMINAR_USUARIO", `Removió usuario ${targetEmail}`);
                 fetchGestionUsuarios();
             }
         }
@@ -478,21 +542,33 @@
             } else {
                 await _supabase.from('control_facturas').insert([{ id_factura: idFactura, estatus: valor, recibido_cb: false }]);
             }
+            registrarAuditoria("CAMBIO_ESTATUS_FACTURA", `Factura N° ${idFactura} cambió a ${valor}`);
             procesarTablaPedidos(); 
         }
 
         // ==========================================================
-        // CHECKBOX DE RECIBIDO CB ACTUALIZADO EN TIEMPO REAL INSTANTÁNEO
+        // CHECKBOX DE RECIBIDO CB CON AUDITORÍA Y BLOQUEO PARA CUENTAS POR COBRAR
         // ==========================================================
         async function modificarTildeRecibidoCB(idFactura, tildado) {
-            // Actualización inmediata en la memoria local para respuesta instantánea de la UI
             if (!mapaFacturasDB[idFactura]) mapaFacturasDB[idFactura] = { estatus: 'PENDIENTE', recibido_cb: false };
+            
+            // Restricción: Si el rol es Cuentas por cobrar y ya estaba marcado, no se puede desmarcar
+            if (usuarioActual.rol === 'Cuentas por cobrar' && !tildado && mapaFacturasDB[idFactura].recibido_cb) {
+                alert("Atención: Como usuario de Cuentas por Cobrar no tienes permisos para desmarcar una factura ya recibida.");
+                procesarTablaPedidos();
+                return;
+            }
+
             mapaFacturasDB[idFactura].recibido_cb = tildado;
             
-            // Re-renderizado instantáneo en el DOM local sin refrescar ni demoras
+            // Re-renderizado instantáneo
             procesarTablaPedidos();
 
-            // Sincronización asíncrona en segundo plano con Supabase
+            // Auditoría
+            const estadoTexto = tildado ? "MARCADO COMO RECIBIDO" : "DESMARCADO DE RECIBIDO";
+            registrarAuditoria("CAMBIO_RECIBIDO_CB", `Factura N° ${idFactura} -> ${estadoTexto}`);
+
+            // Sincronización Supabase
             const { data } = await _supabase.from('control_facturas').select('id_factura').eq('id_factura', idFactura);
             if (data && data.length > 0) {
                 await _supabase.from('control_facturas').update({ recibido_cb: tildado }).eq('id_factura', idFactura);
@@ -532,7 +608,7 @@
         }
 
         // ==========================================================
-        // NUEVA LÓGICA DE IMPORTACIÓN Y UNIFICACIÓN DE FACTURAS
+        // IMPORTACIÓN Y UNIFICACIÓN DE FACTURAS CON AUDITORÍA
         // ==========================================================
         async function procesarArchivoExcelLocal(event) {
             const file = event.target.files[0];
@@ -554,7 +630,6 @@
 
                     const mapaAgrupado = {};
 
-                    // Unificación y suma de ítems pertenecientes a la misma factura
                     for (let i = 1; i < jsonRows.length; i++) {
                         const row = jsonRows[i];
                         if (!row || row.length === 0) continue;
@@ -602,6 +677,7 @@
                         }
                         
                         await cargarLotesFacturasGuardados();
+                        registrarAuditoria("IMPORTACION_EXCEL", `Cargó ${filasNuevas.length} facturas desde archivo ${file.name}`);
                         alert(`¡Éxito! Se procesaron y unificaron ${filasNuevas.length} facturas únicas desde el archivo ${file.name}.`);
                     } else {
                         alert("No se identificaron filas válidas con la estructura del reporte.");
@@ -619,7 +695,6 @@
                 await syncFacturasSupabase();
                 const { data } = await _supabase.from('lotes_facturas_altrom').select('*').order('id', { ascending: true });
                 if (data && data.length > 0) {
-                    // Unificar en caso de que existan registros duplicados en DB
                     const mapaUnico = {};
                     data.forEach(item => {
                         const docKey = item.nro_doc;
@@ -649,56 +724,10 @@
             if (confirm("¿Deseas limpiar todas las tandas de facturas importadas de la pantalla y la base de datos?")) {
                 try {
                     await _supabase.from('lotes_facturas_altrom').delete().neq('id', 0);
+                    registrarAuditoria("LIMPIAR_LOTES", "Vació todas las facturas importadas");
                 } catch(e) {}
                 cacheFilasDrive = [];
                 procesarTablaPedidos();
-            }
-        }
-
-        // MANTENIDO EN SEGUNDO PLANO (RESPALDO DRIVE)
-        async function cargarPedidosExcelDrive() {
-            try {
-                await syncFacturasSupabase(); 
-                const respuesta = await fetch(URL_EXCEL_CSV);
-                if (!respuesta.ok) throw new Error('Error al conectar');
-                const texto = await respuesta.text();
-                const filas = texto.split('\n').slice(1);
-                
-                const mapaAgrupadoDrive = {};
-
-                filas.forEach(linea => {
-                    const c = linea.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(x => x.replace(/"/g, '').trim());
-                    if (c.length >= 16) { 
-                        const nroDoc = c[7] || 'N/A';
-                        if (!mapaAgrupadoDrive[nroDoc]) {
-                            mapaAgrupadoDrive[nroDoc] = {
-                                nro_doc: nroDoc,
-                                cliente: c[5] || 'N/A',
-                                ruta: c[3] || 'N/A',
-                                fecha_emision: convertirFechaExcelATexto(c[1]),
-                                fecha_venc: convertirFechaExcelATexto(c[2]),
-                                monto_bs_num: 0,
-                                monto_usd_num: 0
-                            };
-                        }
-                        mapaAgrupadoDrive[nroDoc].monto_bs_num += limpiarMonto(c[14]);
-                        mapaAgrupadoDrive[nroDoc].monto_usd_num += limpiarMonto(c[15]);
-                    }
-                });
-                
-                cacheFilasDrive = Object.values(mapaAgrupadoDrive).map(item => ({
-                    nro_doc: item.nro_doc,
-                    cliente: item.cliente,
-                    ruta: item.ruta,
-                    fecha_emision: item.fecha_emision,
-                    fecha_venc: item.fecha_venc,
-                    monto_bs: item.monto_bs_num.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-                    monto_usd: item.monto_usd_num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                }));
-                
-                procesarTablaPedidos();
-            } catch (e) {
-                console.error(e);
             }
         }
 
@@ -737,7 +766,9 @@
 
                 let renderRecibido = '';
                 if (usuarioActual.rol === 'Cuentas por cobrar' || usuarioActual.rol === 'Desarrollador') {
-                    renderRecibido = `<input type="checkbox" ${recibidoCB ? 'checked' : ''} onchange="modificarTildeRecibidoCB('${nroDocumento}', this.checked)" class="w-4 h-4 accent-green-600 cursor-pointer">`;
+                    // Si el rol es Cuentas por Cobrar y YA está recibido, se bloquea el checkbox (disabled)
+                    const estaBloqueado = (usuarioActual.rol === 'Cuentas por cobrar' && recibidoCB) ? 'disabled' : '';
+                    renderRecibido = `<input type="checkbox" ${recibidoCB ? 'checked' : ''} ${estaBloqueado} onchange="modificarTildeRecibidoCB('${nroDocumento}', this.checked)" class="w-4 h-4 accent-green-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">`;
                 } else {
                     renderRecibido = recibidoCB ? '<span class="text-green-600 font-bold text-xs">✓ RECIBIDO</span>' : '<span class="text-gray-300 text-[10px]">PTE</span>';
                 }
@@ -780,9 +811,11 @@
             if (tabId === 'tabReportes') {
                 document.getElementById('seccionReportes').classList.remove('hidden-content');
                 document.getElementById('btnTabReportes').className = "py-4 text-xs font-bold uppercase tracking-widest tab-active transition-all";
+                registrarAuditoria("NAVEGACION", "Cambió a vista Reporte de Novedades");
             } else {
                 document.getElementById('seccionPedidos').classList.remove('hidden-content');
                 document.getElementById('btnTabPedidos').className = "py-4 text-xs font-bold uppercase tracking-widest tab-active transition-all";
+                registrarAuditoria("NAVEGACION", "Cambió a vista Control de Pedidos");
                 cargarLotesFacturasGuardados();
             }
         }
@@ -804,14 +837,14 @@
                         <td class="p-4 flex gap-2 justify-center items-center">
                             <button onclick='reexportarPDF(${JSON.stringify(r)})' class="bg-gray-800 text-white px-2 py-1 rounded text-[9px] font-bold">PDF</button>
                             ${(!esListo && (usuarioActual.rol === 'Logistica' || usuarioActual.rol === 'Desarrollador')) ? `<button onclick='generarNC(${JSON.stringify(r)})' class="bg-red-600 text-white px-2 py-1 rounded text-[9px] font-bold uppercase">NC</button>` : ''}
-                            ${usuarioActual.rol === 'Desarrollador' ? `<button onclick='removerReporteSupabase(${r.id})' class="bg-black text-white px-2 py-1 rounded text-[9px] font-bold uppercase hover:bg-red-800 transition-colors">X</button>` : ''}
+                            ${usuarioActual.rol === 'Desarrollador' ? `<button onclick='removerReporteSupabase(${r.id}, "${r.factura}")' class="bg-black text-white px-2 py-1 rounded text-[9px] font-bold uppercase hover:bg-red-800 transition-colors">X</button>` : ''}
                         </td>
                     </tr>`;
                 }).join('');
             }
         }
 
-        async function removerReporteSupabase(id) {
+        async function removerReporteSupabase(id, nroFactura) {
             if (confirm("¿Estás seguro de que deseas eliminar permanentemente este reporte de la base de datos de Altrom?")) {
                 try {
                     const { error } = await _supabase
@@ -819,10 +852,9 @@
                         .delete()
                         .eq('id', id);
 
-                    if (error) {
-                        throw error;
-                    }
+                    if (error) throw error;
 
+                    registrarAuditoria("ELIMINAR_REPORTE", `Eliminó el reporte con factura N° ${nroFactura}`);
                     cargarReportes();
                 } catch (err) {
                     console.error("Error crítico al eliminar reporte:", err.message);
@@ -872,6 +904,7 @@
                 btn.innerText = "REINTENTAR"; 
                 btn.disabled = false; 
             } else { 
+                registrarAuditoria("CREAR_REPORTE", `Creó reporte N° Control ${inputNroControl} - Factura ${datos.factura}`);
                 exportarPDF_Logic(datos, listaProductos, "REPORTE"); 
                 document.getElementById('modalForm').classList.add('hidden'); 
                 document.getElementById('formReporte').reset(); 
@@ -1052,13 +1085,18 @@
 
         function reexportarPDF(r) {
             let p; try { p = JSON.parse(r.tipo); } catch(e) { p = [[r.tipo, r.bulto || 0, r.unidades || 0, r.peso || 0]]; }
+            registrarAuditoria("DESCARGA_PDF", `Descargó PDF de reporte Factura N° ${r.factura}`);
             exportarPDF_Logic(r, p, "REPORTE");
         }
 
         async function generarNC(r) {
             let p; try { p = JSON.parse(r.tipo); } catch(e) { p = [[r.tipo, r.bulto || 0, r.unidades || 0, r.peso || 0]]; }
             const { error } = await _supabase.from('reportes_altrom').update({ estado: 'LISTO' }).eq('id', r.id);
-            if (!error) { exportarPDF_Logic(r, p, "NOTA DE CRÉDITO"); cargarReportes(); }
+            if (!error) { 
+                registrarAuditoria("GENERAR_NOTA_CREDITO", `Generó Nota de Crédito para Factura N° ${r.factura}`);
+                exportarPDF_Logic(r, p, "NOTA DE CRÉDITO"); 
+                cargarReportes(); 
+            }
         }
 
         const imagenesArr = document.querySelectorAll('#carrusel-container img');
