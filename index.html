@@ -147,6 +147,7 @@
                             <thead class="bg-gray-50 text-orange-700 uppercase font-bold">
                                 <tr>
                                     <th class="p-4">Estado</th>
+                                    <th class="p-4">N° Control</th>
                                     <th class="p-4">Fecha</th>
                                     <th class="p-4">Cliente</th>
                                     <th class="p-4">Factura</th>
@@ -224,6 +225,7 @@
         </main>
     </div>
 
+    <!-- MODAL FORMULARIO DE REPORTE CON CAMPO MANUAL DE CONTROL -->
     <div id="modalForm" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8">
             <div class="flex justify-between items-center border-b pb-4 mb-6 text-red-700">
@@ -232,10 +234,11 @@
             </div>
             <form id="formReporte" class="space-y-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="number" id="nro_control" placeholder="N° DE CONTROL (TALONARIO)" class="bg-orange-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm border border-orange-200 text-orange-900">
                     <input type="text" id="cliente" placeholder="NOMBRE DE CLIENTE" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 uppercase text-sm border border-gray-100">
                     <input type="date" id="fecha" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100">
                     <input type="text" id="factura" placeholder="N° FACTURA O NOTA" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100">
-                    <input type="text" id="ruta" placeholder="RUTA" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100 uppercase">
+                    <input type="text" id="ruta" placeholder="RUTA" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100 uppercase md:col-span-2">
                 </div>
 
                 <div id="contenedorProductos" class="space-y-2">
@@ -313,7 +316,7 @@
             const { data: perfil, error } = await _supabase.from('perfiles_usuarios').select('*').eq('id', authUser.id).single();
             
             if (authUser.email === CORREO_MASTER) {
-                usuarioActual = { id: authUser.id, email: authUser.email, rol: 'Desarrollador', approved: true };
+                usuarioActual = { id: authUser.id, email: authUser.email, rol: 'Desarrollador', aprobado: true };
                 if (!perfil) {
                     await _supabase.from('perfiles_usuarios').insert([usuarioActual]);
                 }
@@ -504,7 +507,7 @@
             cacheFilasDrive.forEach((c) => {
                 const nroDocumento = c[7] || 'N/A'; 
                 const cliente = c[5] || 'N/A';      
-                const ruta = c[3] || 'N/A';          
+                const ruta = c[3] || 'N/A';         
                 const fechaEmision = c[1] || '';   
                 const fechaVenc = c[2] || '';      
                 const montoBs = c[14] || '0.00';    
@@ -588,8 +591,10 @@
                 const tabla = document.getElementById('tablaReportes');
                 tabla.innerHTML = data.map(r => {
                     const esListo = r.estado === 'LISTO';
+                    const stringControl = r.nro_control ? String(r.nro_control).padStart(4, '0') : "----";
                     return `<tr class="border-t hover:bg-orange-50 transition-colors">
                         <td class="p-4 font-bold ${esListo ? 'text-green-600' : 'text-orange-500'}">${esListo ? '✓ LISTO' : 'PENDIENTE'}</td>
+                        <td class="p-4 font-mono font-bold text-gray-700">${stringControl}</td>
                         <td class="p-4">${r.fecha}</td>
                         <td class="p-4 font-bold uppercase text-red-700">${r.cliente}</td>
                         <td class="p-4 text-gray-500">${r.factura}</td>
@@ -604,9 +609,6 @@
             }
         }
 
-        // ==========================================
-        // 🚨 FUNCIÓN PARA ELIMINAR REPORTES DESDE EL ROL DESARROLLADOR
-        // ==========================================
         async function removerReporteSupabase(id) {
             if (confirm("¿Estás seguro de que deseas eliminar permanentemente este reporte de la base de datos de Altrom?")) {
                 try {
@@ -619,7 +621,6 @@
                         throw error;
                     }
 
-                    // Refrescar el listado en pantalla automáticamente
                     cargarReportes();
                 } catch (err) {
                     console.error("Error crítico al eliminar reporte:", err.message);
@@ -637,6 +638,12 @@
         }
 
         async function guardarYGenerar() {
+            const inputNroControl = document.getElementById('nro_control').value;
+            if(!inputNroControl) {
+                alert("Por favor ingresa el N° de Control del talonario.");
+                return;
+            }
+
             const btn = document.getElementById('btnGuardar'); btn.innerText = "GUARDANDO..."; btn.disabled = true;
             const filas = document.querySelectorAll('.fila-producto');
             let listaProductos = [];
@@ -644,10 +651,32 @@
                 const ins = f.querySelectorAll('input');
                 if(ins[0].value.trim() !== "") { listaProductos.push([ins[0].value.toUpperCase(), ins[1].value || 0, ins[2].value || 0, ins[3].value || 0]); }
             });
-            const datos = { cliente: document.getElementById('cliente').value, fecha: document.getElementById('fecha').value, factura: document.getElementById('factura').value, ruta: document.getElementById('ruta').value, chofer: document.getElementById('chofer').value, novedad: document.getElementById('novedad').value, estado: 'PENDIENTE', tipo: JSON.stringify(listaProductos) };
+            
+            const datos = { 
+                nro_control: parseInt(inputNroControl),
+                cliente: document.getElementById('cliente').value, 
+                fecha: document.getElementById('fecha').value, 
+                factura: document.getElementById('factura').value, 
+                ruta: document.getElementById('ruta').value, 
+                chofer: document.getElementById('chofer').value, 
+                novedad: document.getElementById('novedad').value, 
+                estado: 'PENDIENTE', 
+                tipo: JSON.stringify(listaProductos) 
+            };
+
             const { error } = await _supabase.from('reportes_altrom').insert([datos]);
-            if (error) { alert("Error: " + error.message); btn.innerText = "REINTENTAR"; btn.disabled = false; }
-            else { exportarPDF_Logic(datos, listaProductos, "REPORTE"); document.getElementById('modalForm').classList.add('hidden'); document.getElementById('formReporte').reset(); btn.innerText = "Guardar Reporte y Descargar PDF"; btn.disabled = false; cargarReportes(); }
+            if (error) { 
+                alert("Error: " + error.message); 
+                btn.innerText = "REINTENTAR"; 
+                btn.disabled = false; 
+            } else { 
+                exportarPDF_Logic(datos, listaProductos, "REPORTE"); 
+                document.getElementById('modalForm').classList.add('hidden'); 
+                document.getElementById('formReporte').reset(); 
+                btn.innerText = "Guardar Reporte y Descargar PDF"; 
+                btn.disabled = false; 
+                cargarReportes(); 
+            }
         }
 
         function exportarPDF_Logic(data, productos, titulo) {
@@ -674,8 +703,9 @@
             
             doc.setFontSize(14);
             doc.setTextColor(COLOR_ROJO_CONTROL[0], COLOR_ROJO_CONTROL[1], COLOR_ROJO_CONTROL[2]);
-            const nroControl = data.factura ? data.factura.slice(-4).padStart(4, '0') : "0000";
-            doc.text(nroControl, 185, 23, { align: "right" });
+            
+            const stringNroControl = data.nro_control ? String(data.nro_control).padStart(4, '0') : "0000";
+            doc.text(stringNroControl, 185, 23, { align: "right" });
 
             doc.setDrawColor(COLOR_LINEA_AZUL[0], COLOR_LINEA_AZUL[1], COLOR_LINEA_AZUL[2]);
             doc.setLineWidth(0.3);
@@ -683,14 +713,12 @@
             doc.setFontSize(8);
             doc.setTextColor(COLOR_TEXTO_NEGRO[0], COLOR_TEXTO_NEGRO[1], COLOR_TEXTO_NEGRO[2]);
 
-            // Fila 1: CLIENTE
             doc.rect(16, 32, 35, 7); 
             doc.text("CLIENTE O PROVEEDOR", 18, 36.5);
             doc.rect(51, 32, 143, 7); 
             doc.setFont("helvetica", "normal");
             doc.text((data.cliente || '').toUpperCase(), 54, 36.5);
 
-            // Fila 2: NRO. FACTURA
             doc.setFont("helvetica", "bold");
             doc.rect(16, 39, 35, 7);
             doc.text("NRO. FACTURA O NE", 18, 43.5);
@@ -698,7 +726,6 @@
             doc.setFont("helvetica", "normal");
             doc.text((data.factura || '').toUpperCase(), 54, 43.5);
 
-            // Fila 3: FECHA
             doc.setFont("helvetica", "bold");
             doc.rect(16, 46, 35, 7);
             doc.text("FECHA", 18, 50.5);
@@ -706,7 +733,6 @@
             doc.setFont("helvetica", "normal");
             doc.text(data.fecha || '', 54, 50.5);
 
-            // Fila 4: RUTA
             doc.setFont("helvetica", "bold");
             doc.rect(16, 53, 35, 7);
             doc.text("RUTA", 18, 57.5);
@@ -714,7 +740,6 @@
             doc.setFont("helvetica", "normal");
             doc.text((data.ruta || '').toUpperCase(), 54, 57.5);
 
-            // TIPO DE MERCANCIA casillas
             doc.setFont("helvetica", "bold");
             doc.text("TIPO DE MERCANCIA", 16, 66);
             doc.rect(16, 69, 30, 6);
@@ -785,7 +810,7 @@
                     1: { cellWidth: 24, halign: 'center' }, 
                     2: { cellWidth: 26, halign: 'center' }, 
                     3: { cellWidth: 24, halign: 'center' }, 
-                    4: { halign: 'left' }                    
+                    4: { halign: 'left' }                   
                 },
                 didParseCell: function (d) {
                     if (d.row.index === filasTabla.length - 1) {
