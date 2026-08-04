@@ -625,7 +625,6 @@
         function convertirFechaExcelATexto(val) {
             if (!val) return '';
             
-            // Si ya es un objeto Date nativo de JS (como en el nuevo Excel)
             if (val instanceof Date) {
                 const dia = String(val.getDate()).padStart(2, '0');
                 const mes = String(val.getMonth() + 1).padStart(2, '0');
@@ -635,19 +634,16 @@
 
             const strVal = String(val).trim();
             
-            // Si es un ISO String tipo YYYY-MM-DD
             if (strVal.includes('-')) {
                 const partes = strVal.split('T')[0].split('-');
                 if(partes.length === 3 && partes[0].length === 4) {
-                    return `${partes[2]}/${partes[1]}/${partes[0]}`; // YYYY-MM-DD -> DD/MM/YYYY
+                    return `${partes[2]}/${partes[1]}/${partes[0]}`;
                 }
                 return strVal;
             }
             
-            // Si ya tiene /
             if (strVal.includes('/')) return strVal;
             
-            // Si es serial numérico de Excel
             const num = parseFloat(strVal);
             if (!isNaN(num) && num > 30000) {
                 const dateObj = XLSX.SSF.parse_date_code(num);
@@ -662,7 +658,7 @@
         }
 
         // ==========================================================
-        // IMPORTACIÓN DINÁMICA POR NOMBRE DE COLUMNA (SOPORTA AMBOS FORMATOS)
+        // BÚSQUEDA PRIORITARIA DE "NÚMERO DE DOCUMENTO" (COLUMNA 9)
         // ==========================================================
         async function procesarArchivoExcelLocal(event) {
             const file = event.target.files[0];
@@ -682,10 +678,15 @@
                         return;
                     }
 
-                    // Búsqueda dinámica de índices de columnas según el encabezado (Fila 0)
-                    const header = jsonRows[0].map(h => String(headerVal(h)).toUpperCase());
+                    // Búsqueda prioritaria de los encabezados (Fila 0)
+                    const header = jsonRows[0].map(h => String(headerVal(h)).toUpperCase().trim());
                     
-                    let idxDoc = header.findIndex(h => h.includes('NÚMERO DE DOCUMENTO') || h.includes('NUMERO DE DOCUMENTO') || h.includes('DOCUMENTO'));
+                    // PRIORIDAD RIGUROSA: "NÚMERO DE DOCUMENTO" antes que "DOCUMENTO"
+                    let idxDoc = header.findIndex(h => h.includes('NÚMERO DE DOCUMENTO') || h.includes('NUMERO DE DOCUMENTO'));
+                    if (idxDoc === -1) {
+                        idxDoc = header.findIndex(h => h === 'DOCUMENTO');
+                    }
+                    
                     let idxCliente = header.findIndex(h => h.includes('NOMBRE DE CLIENTE') || h.includes('CLIENTE') || h.includes('PROVEEDOR'));
                     let idxRuta = header.findIndex(h => h.includes('VENDEDOR') || h.includes('RUTA'));
                     let idxEmision = header.findIndex(h => h.includes('EMISIÓN') || h.includes('EMISION'));
@@ -693,14 +694,14 @@
                     let idxBs = header.findIndex(h => h.includes('MONTO EN BS') || h.includes('MONTO BS'));
                     let idxUSD = header.findIndex(h => h.includes('MONTO EN $') || h.includes('MONTO $'));
 
-                    // Fallback a índices estáticos si no se encuentran por nombre
-                    if (idxDoc === -1) idxDoc = 7;
+                    // Fallbacks por índice en caso extremo
+                    if (idxDoc === -1) idxDoc = 9;
                     if (idxCliente === -1) idxCliente = 5;
                     if (idxRuta === -1) idxRuta = 3;
                     if (idxEmision === -1) idxEmision = 1;
                     if (idxVenc === -1) idxVenc = 2;
-                    if (idxBs === -1) idxBs = 14;
-                    if (idxUSD === -1) idxUSD = 15;
+                    if (idxBs === -1) idxBs = 16;
+                    if (idxUSD === -1) idxUSD = 17;
 
                     const mapaAgrupado = {};
 
