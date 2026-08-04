@@ -605,14 +605,22 @@
             }
         }
 
-        // PARSER DE MONTOS (FLOTANTES Y STRINGS LATINOS)
+        // PARSER UNIVERSAL DE MONTOS (MANEJA FLOTANTES, FORMATO LATINO Y AMERICANO)
         function limpiarMonto(val) {
             if (val === null || val === undefined || val === '') return 0;
             if (typeof val === 'number') return isNaN(val) ? 0 : val;
             
             let str = String(val).trim();
-            if (str.includes('.') && str.includes(',')) {
-                str = str.replace(/\./g, '').replace(',', '.');
+            
+            // Si el string viene en formato US (ej. "57,327.36")
+            if (str.includes(',') && str.includes('.')) {
+                if (str.indexOf(',') < str.indexOf('.')) {
+                    // Formato US: 57,327.36 -> eliminar comas
+                    str = str.replace(/,/g, '');
+                } else {
+                    // Formato Latino: 57.327,36 -> eliminar puntos y convertir coma en punto
+                    str = str.replace(/\./g, '').replace(',', '.');
+                }
             } else if (str.includes(',')) {
                 str = str.replace(',', '.');
             }
@@ -658,7 +666,7 @@
         }
 
         // ==========================================================
-        // BÚSQUEDA PRIORITARIA DE "NÚMERO DE DOCUMENTO" (COLUMNA 9)
+        // IMPORTACIÓN DINÁMICA POR NOMBRE DE COLUMNA (raw: true PARA LECTURA PURA)
         // ==========================================================
         async function procesarArchivoExcelLocal(event) {
             const file = event.target.files[0];
@@ -668,10 +676,11 @@
             reader.onload = async function(e) {
                 try {
                     const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array', cellDates: true, raw: false });
+                    // IMPORTANTE: raw: true previene que SheetJS altere los números flotantes
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true, raw: true });
                     const firstSheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[firstSheetName];
-                    const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false });
+                    const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true });
 
                     if (jsonRows.length <= 1) {
                         alert("El archivo no contiene filas de datos.");
@@ -681,7 +690,6 @@
                     // Búsqueda prioritaria de los encabezados (Fila 0)
                     const header = jsonRows[0].map(h => String(headerVal(h)).toUpperCase().trim());
                     
-                    // PRIORIDAD RIGUROSA: "NÚMERO DE DOCUMENTO" antes que "DOCUMENTO"
                     let idxDoc = header.findIndex(h => h.includes('NÚMERO DE DOCUMENTO') || h.includes('NUMERO DE DOCUMENTO'));
                     if (idxDoc === -1) {
                         idxDoc = header.findIndex(h => h === 'DOCUMENTO');
@@ -694,7 +702,6 @@
                     let idxBs = header.findIndex(h => h.includes('MONTO EN BS') || h.includes('MONTO BS'));
                     let idxUSD = header.findIndex(h => h.includes('MONTO EN $') || h.includes('MONTO $'));
 
-                    // Fallbacks por índice en caso extremo
                     if (idxDoc === -1) idxDoc = 9;
                     if (idxCliente === -1) idxCliente = 5;
                     if (idxRuta === -1) idxRuta = 3;
