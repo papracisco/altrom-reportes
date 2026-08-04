@@ -192,18 +192,21 @@
                         </div>
                         
                         <!-- BOTONES DE IMPORTACIÓN, EXPORTACIÓN DE CIERRE Y LIMPIEZA -->
-                        <div id="contenedorBotonesImportar" class="hidden-content flex flex-wrap items-center gap-3">
+                        <div class="flex flex-wrap items-center gap-3">
                             <input type="file" id="inputArchivoExcel" accept=".xlsx, .xls, .csv" class="hidden" onchange="procesarArchivoExcelLocal(event)">
                             
-                            <button onclick="document.getElementById('inputArchivoExcel').click()" class="px-4 py-3 bg-orange-altrom hover:bg-red-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2">
+                            <!-- SOLO DESARROLLADOR Y LOGÍSTICA -->
+                            <button id="btnImportarExcel" onclick="document.getElementById('inputArchivoExcel').click()" class="hidden-content px-4 py-3 bg-orange-altrom hover:bg-red-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2">
                                 📥 Importar Excel / CSV
                             </button>
                             
-                            <button onclick="exportarCierrePDF()" class="px-4 py-3 bg-blue-700 hover:bg-blue-900 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2">
+                            <!-- DESARROLLADOR, LOGÍSTICA Y CUENTAS POR COBRAR -->
+                            <button id="btnExportarPDF" onclick="exportarCierrePDF()" class="hidden-content px-4 py-3 bg-blue-700 hover:bg-blue-900 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2">
                                 📄 Exportar Cierre PDF
                             </button>
 
-                            <button onclick="eliminarLotesFacturas()" class="px-4 py-3 bg-gray-800 hover:bg-black text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md">
+                            <!-- SOLO DESARROLLADOR Y LOGÍSTICA -->
+                            <button id="btnLimpiarLotes" onclick="eliminarLotesFacturas()" class="hidden-content px-4 py-3 bg-gray-800 hover:bg-black text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md">
                                 🗑️ Limpiar Lotes
                             </button>
                         </div>
@@ -443,11 +446,19 @@
                 document.getElementById('btnAbrirFormReportes').classList.add('hidden-content');
             }
 
-            // PERMISO DE IMPORTACIÓN EXCEL SOLO PARA DESARROLLADOR Y LOGÍSTICA
+            // GESTIÓN RIGUROSA DE BOTONES SEGÚN EL ROL DEL USUARIO
             if (usuarioActual.rol === 'Desarrollador' || usuarioActual.rol === 'Logistica') {
-                document.getElementById('contenedorBotonesImportar').classList.remove('hidden-content');
+                document.getElementById('btnImportarExcel').classList.remove('hidden-content');
+                document.getElementById('btnLimpiarLotes').classList.remove('hidden-content');
+                document.getElementById('btnExportarPDF').classList.remove('hidden-content');
+            } else if (usuarioActual.rol === 'Cuentas por cobrar') {
+                document.getElementById('btnImportarExcel').classList.add('hidden-content');
+                document.getElementById('btnLimpiarLotes').classList.add('hidden-content');
+                document.getElementById('btnExportarPDF').classList.remove('hidden-content');
             } else {
-                document.getElementById('contenedorBotonesImportar').classList.add('hidden-content');
+                document.getElementById('btnImportarExcel').classList.add('hidden-content');
+                document.getElementById('btnLimpiarLotes').classList.add('hidden-content');
+                document.getElementById('btnExportarPDF').classList.add('hidden-content');
             }
 
             cargarReportes();
@@ -571,13 +582,9 @@
             procesarTablaPedidos(); 
         }
 
-        // ==========================================================
-        // CHECKBOX DE RECIBIDO CB CON AUDITORÍA Y CONTROL ESTRICTO
-        // ==========================================================
         async function modificarTildeRecibidoCB(idFactura, tildado) {
             if (!mapaFacturasDB[idFactura]) mapaFacturasDB[idFactura] = { estatus: 'PENDIENTE', recibido_cb: false };
             
-            // Restricción: Si Cuentas por Cobrar intenta desmarcar una que ya estaba recibida
             if (usuarioActual.rol === 'Cuentas por cobrar' && !tildado && mapaFacturasDB[idFactura].recibido_cb) {
                 alert("Atención: Como usuario de Cuentas por Cobrar no tienes permisos para desmarcar una factura ya recibida.");
                 procesarTablaPedidos();
@@ -585,15 +592,11 @@
             }
 
             mapaFacturasDB[idFactura].recibido_cb = tildado;
-            
-            // Re-renderizado instantáneo
             procesarTablaPedidos();
 
-            // Auditoría
             const estadoTexto = tildado ? "MARCADO COMO RECIBIDO" : "DESMARCADO DE RECIBIDO";
             registrarAuditoria("CAMBIO_RECIBIDO_CB", `Factura N° ${idFactura} -> ${estadoTexto}`);
 
-            // Sincronización Supabase
             const { data } = await _supabase.from('control_facturas').select('id_factura').eq('id_factura', idFactura);
             if (data && data.length > 0) {
                 await _supabase.from('control_facturas').update({ recibido_cb: tildado }).eq('id_factura', idFactura);
@@ -602,10 +605,21 @@
             }
         }
 
+        // FUNCIÓN MEJORADA Y RIGUROSA PARA LIMPIAR Y PARSEAR MONTOS LATINOS/ESPAÑOLES
         function limpiarMonto(val) {
-            if (val === null || val === undefined) return 0;
-            if (typeof val === 'number') return val;
-            let str = String(val).trim().replace(/\./g, '').replace(',', '.');
+            if (val === null || val === undefined || val === '') return 0;
+            if (typeof val === 'number') return isNaN(val) ? 0 : val;
+            
+            let str = String(val).trim();
+            
+            // Si el string contiene tanto punto como coma (ej. 569.496,58)
+            if (str.includes('.') && str.includes(',')) {
+                str = str.replace(/\./g, '').replace(',', '.');
+            } else if (str.includes(',')) {
+                // Si solo contiene comas, asumimos coma como decimal
+                str = str.replace(',', '.');
+            }
+            
             let num = parseFloat(str);
             return isNaN(num) ? 0 : num;
         }
@@ -633,7 +647,7 @@
         }
 
         // ==========================================================
-        // IMPORTACIÓN Y UNIFICACIÓN DE FACTURAS CON AUDITORÍA
+        // IMPORTACIÓN Y UNIFICACIÓN CON SUMATORIA EXACTA DE MONTOS
         // ==========================================================
         async function procesarArchivoExcelLocal(event) {
             const file = event.target.files[0];
@@ -746,7 +760,7 @@
         }
 
         // ==========================================================
-        // EXPORTACIÓN DE REPORTE CONSOLIDADO EN PDF (CIERRE MENSUAL)
+        // EXPORTACIÓN DE REPORTE CON CORRECCIÓN RIGUROSA DE FECHAS
         // ==========================================================
         function exportarCierrePDF() {
             if (!cacheFilasDrive || cacheFilasDrive.length === 0) {
@@ -755,10 +769,9 @@
             }
 
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('l', 'mm', 'a4'); // Horizontal para mayor espacio
+            const doc = new jsPDF('l', 'mm', 'a4'); 
 
             const COLOR_LINEA_AZUL = [30, 70, 140];
-            const COLOR_TEXTO_NEGRO = [40, 40, 40];
 
             doc.addImage('logo.png', 'PNG', 14, 10, 22, 22);
 
@@ -768,7 +781,7 @@
             doc.text("ALTROM ALIMENTOS, C.A.", 148, 16, { align: "center" });
 
             doc.setFontSize(11);
-            doc.setTextColor(240, 84, 35); // Naranja Altrom
+            doc.setTextColor(240, 84, 35);
             doc.text("REPORTE CONSOLIDADO DE CIERRE MENSUAL DE FACTURACIÓN", 148, 22, { align: "center" });
 
             const fechaHoy = new Date().toLocaleDateString('es-VE') + ' ' + new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
@@ -783,8 +796,11 @@
                 const nroDoc = item.nro_doc || 'N/A';
                 const cliente = item.cliente || 'N/A';
                 const ruta = item.ruta || 'N/A';
-                const emision = item.fecha_emision || '';
-                const venc = item.fecha_venc || '';
+                
+                // Conversión rigurosa de fecha para evitar números flotantes seriales de Excel
+                const emision = convertirFechaExcelATexto(item.fecha_emision || item[1]);
+                const venc = convertirFechaExcelATexto(item.fecha_venc || item[2]);
+                
                 const montoBs = item.monto_bs || '0,00';
                 const montoUSD = item.monto_usd || '0,00';
 
@@ -896,21 +912,16 @@
                     renderEstatus = `<span class="px-3 py-1 ${colorStatus} rounded-full font-bold text-[9px]">${status}</span>`;
                 }
 
-                // RENDERING MEJORADO Y NÍTIDO DE RECIBIDO CB SEGÚN ROL
                 let renderRecibido = '';
                 if (usuarioActual.rol === 'Cuentas por cobrar') {
                     if (recibidoCB) {
-                        // CASILLA MARCADA NÍTIDA (Insignia verde fija muy visible)
                         renderRecibido = `<span class="inline-flex items-center justify-center bg-green-600 text-white font-bold text-[11px] px-2.5 py-1 rounded-md shadow-sm">✓ RECIBIDO</span>`;
                     } else {
-                        // CASILLA LIBRE PARA MARCAR
                         renderRecibido = `<input type="checkbox" onchange="modificarTildeRecibidoCB('${nroDocumento}', this.checked)" class="w-5 h-5 accent-green-600 cursor-pointer">`;
                     }
                 } else if (usuarioActual.rol === 'Desarrollador') {
-                    // El Desarrollador mantiene control total para marcar y desmarcar
                     renderRecibido = `<input type="checkbox" ${recibidoCB ? 'checked' : ''} onchange="modificarTildeRecibidoCB('${nroDocumento}', this.checked)" class="w-5 h-5 accent-green-600 cursor-pointer">`;
                 } else {
-                    // Para otros roles (Logística, Visualizador)
                     renderRecibido = recibidoCB ? '<span class="text-green-600 font-bold text-xs">✓ RECIBIDO</span>' : '<span class="text-gray-300 text-[10px]">PTE</span>';
                 }
 
@@ -931,12 +942,9 @@
             });
             
             tabla.innerHTML = html || '<tr><td colspan="9" class="p-10 text-center text-gray-400 font-bold uppercase tracking-widest">Sin registros activos. Haz clic en "Importar Excel / CSV" para cargar facturas.</td></tr>';
-            filtrarPedidos(); // Aplica cualquier filtro de texto o estatus activo
+            filtrarPedidos();
         }
 
-        // ==========================================================
-        // FILTRADO DINÁMICO COMBINADO (TEXTO + SELECT DE ESTATUS)
-        // ==========================================================
         function filtrarPedidos() {
             const textoBuscador = document.getElementById('buscadorPedidos').value.toUpperCase();
             const estatusFiltro = document.getElementById('filtroEstatusPedidos').value;
