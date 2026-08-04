@@ -191,12 +191,18 @@
                             </select>
                         </div>
                         
-                        <!-- BOTONES DE IMPORTACIÓN Y LIMPIEZA (SOLO DESARROLLADOR Y LOGÍSTICA) -->
-                        <div id="contenedorBotonesImportar" class="hidden-content flex items-center gap-3">
+                        <!-- BOTONES DE IMPORTACIÓN, EXPORTACIÓN DE CIERRE Y LIMPIEZA -->
+                        <div id="contenedorBotonesImportar" class="hidden-content flex flex-wrap items-center gap-3">
                             <input type="file" id="inputArchivoExcel" accept=".xlsx, .xls, .csv" class="hidden" onchange="procesarArchivoExcelLocal(event)">
-                            <button onclick="document.getElementById('inputArchivoExcel').click()" class="px-5 py-3 bg-orange-altrom hover:bg-red-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2">
+                            
+                            <button onclick="document.getElementById('inputArchivoExcel').click()" class="px-4 py-3 bg-orange-altrom hover:bg-red-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2">
                                 📥 Importar Excel / CSV
                             </button>
+                            
+                            <button onclick="exportarCierrePDF()" class="px-4 py-3 bg-blue-700 hover:bg-blue-900 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2">
+                                📄 Exportar Cierre PDF
+                            </button>
+
                             <button onclick="eliminarLotesFacturas()" class="px-4 py-3 bg-gray-800 hover:bg-black text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md">
                                 🗑️ Limpiar Lotes
                             </button>
@@ -739,11 +745,118 @@
             }
         }
 
+        // ==========================================================
+        // EXPORTACIÓN DE REPORTE CONSOLIDADO EN PDF (CIERRE MENSUAL)
+        // ==========================================================
+        function exportarCierrePDF() {
+            if (!cacheFilasDrive || cacheFilasDrive.length === 0) {
+                alert("No hay facturas cargadas en pantalla para exportar.");
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4'); // Horizontal para mayor espacio
+
+            const COLOR_LINEA_AZUL = [30, 70, 140];
+            const COLOR_TEXTO_NEGRO = [40, 40, 40];
+
+            doc.addImage('logo.png', 'PNG', 14, 10, 22, 22);
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(16);
+            doc.setTextColor(30, 60, 120);
+            doc.text("ALTROM ALIMENTOS, C.A.", 148, 16, { align: "center" });
+
+            doc.setFontSize(11);
+            doc.setTextColor(240, 84, 35); // Naranja Altrom
+            doc.text("REPORTE CONSOLIDADO DE CIERRE MENSUAL DE FACTURACIÓN", 148, 22, { align: "center" });
+
+            const fechaHoy = new Date().toLocaleDateString('es-VE') + ' ' + new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+            doc.setFontSize(8);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Fecha de Emisión del Cierre: ${fechaHoy} | Emitido por: ${usuarioActual.email}`, 148, 27, { align: "center" });
+
+            let totalBs = 0;
+            let totalUSD = 0;
+
+            const filasTabla = cacheFilasDrive.map(item => {
+                const nroDoc = item.nro_doc || 'N/A';
+                const cliente = item.cliente || 'N/A';
+                const ruta = item.ruta || 'N/A';
+                const emision = item.fecha_emision || '';
+                const venc = item.fecha_venc || '';
+                const montoBs = item.monto_bs || '0,00';
+                const montoUSD = item.monto_usd || '0,00';
+
+                const datosDB = mapaFacturasDB[nroDoc] || { estatus: 'PENDIENTE', recibido_cb: false };
+                const estatus = datosDB.estatus;
+                const recibido = datosDB.recibido_cb ? 'SI (RECIBIDO)' : 'NO (PTE)';
+
+                totalBs += limpiarMonto(montoBs);
+                totalUSD += limpiarMonto(montoUSD);
+
+                return [nroDoc, cliente.toUpperCase(), ruta.toUpperCase(), emision, venc, montoBs, montoUSD, estatus, recibido];
+            });
+
+            doc.autoTable({
+                startY: 32,
+                margin: { left: 14, right: 14 },
+                head: [['N° DOC', 'CLIENTE', 'RUTA', 'EMISIÓN', 'VENCIMIENTO', 'MONTO BS', 'MONTO $', 'ESTATUS', 'RECIBIDO CB']],
+                body: filasTabla,
+                theme: 'grid',
+                styles: {
+                    fontSize: 7.5,
+                    textColor: [0, 0, 0],
+                    lineColor: COLOR_LINEA_AZUL,
+                    lineWidth: 0.15,
+                    padding: 2
+                },
+                headStyles: {
+                    fillColor: [30, 60, 120],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    halign: 'center'
+                },
+                columnStyles: {
+                    0: { cellWidth: 20, fontStyle: 'bold' },
+                    1: { cellWidth: 70 },
+                    2: { cellWidth: 25 },
+                    3: { cellWidth: 24, halign: 'center' },
+                    4: { cellWidth: 24, halign: 'center' },
+                    5: { cellWidth: 32, halign: 'right' },
+                    6: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
+                    7: { cellWidth: 24, halign: 'center', fontStyle: 'bold' },
+                    8: { cellWidth: 22, halign: 'center' }
+                }
+            });
+
+            let finalY = doc.lastAutoTable.finalY + 8;
+
+            // Resumen de Totales
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(9);
+            doc.setTextColor(30, 60, 120);
+            const strTotalBs = totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const strTotalUSD = totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            doc.text(`TOTAL FACTURADO CIERRE:  Bs. ${strTotalBs}   |   USD $ ${strTotalUSD}`, 14, finalY);
+
+            doc.save(`Cierre_Facturacion_Altrom_${new Date().toISOString().slice(0, 10)}.pdf`);
+            registrarAuditoria("EXPORTAR_CIERRE_PDF", `Exportó cierre en PDF con ${cacheFilasDrive.length} facturas`);
+        }
+
         async function eliminarLotesFacturas() {
-            if (confirm("¿Deseas limpiar todas las tandas de facturas importadas de la pantalla y la base de datos?")) {
+            if (cacheFilasDrive && cacheFilasDrive.length > 0) {
+                const deseaDescargar = confirm("💡 Sugerencia: ¿Deseas descargar el reporte PDF del Cierre Mensual antes de vaciar las facturas?");
+                if (deseaDescargar) {
+                    exportarCierrePDF();
+                }
+            }
+
+            if (confirm("⚠️ ¿Estás totalmente seguro de limpiar todas las tandas de facturas? Esto vaciará la lista para ingresar los nuevos lotes.")) {
                 try {
                     await _supabase.from('lotes_facturas_altrom').delete().neq('id', 0);
-                    registrarAuditoria("LIMPIAR_LOTES", "Vació todas las facturas importadas");
+                    registrarAuditoria("LIMPIAR_LOTES", "Vació todas las facturas importadas del mes");
                 } catch(e) {}
                 cacheFilasDrive = [];
                 procesarTablaPedidos();
