@@ -174,13 +174,25 @@
 
                 <div class="bg-white rounded-3xl shadow-sm border p-6">
                     <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-                        <div class="relative w-full md:w-96">
-                            <input type="text" id="buscadorPedidos" onkeyup="filtrarPedidos()" placeholder="Buscar Factura o Cliente..." class="w-full p-3 pl-10 rounded-xl bg-gray-50 border border-gray-100 text-sm outline-none focus:ring-2 focus:ring-orange-500 uppercase">
-                            <span class="absolute left-3 top-3.5 opacity-30">🔍</span>
+                        
+                        <!-- BUSCADOR + FILTRO DINÁMICO DE ESTATUS -->
+                        <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                            <div class="relative w-full sm:w-80">
+                                <input type="text" id="buscadorPedidos" onkeyup="filtrarPedidos()" placeholder="Buscar Factura o Cliente..." class="w-full p-3 pl-10 rounded-xl bg-gray-50 border border-gray-100 text-sm outline-none focus:ring-2 focus:ring-orange-500 uppercase">
+                                <span class="absolute left-3 top-3.5 opacity-30">🔍</span>
+                            </div>
+                            
+                            <select id="filtroEstatusPedidos" onchange="filtrarPedidos()" class="w-full sm:w-auto p-3 rounded-xl bg-gray-50 border border-gray-200 text-xs font-bold text-gray-700 outline-none focus:ring-2 focus:ring-orange-500 uppercase">
+                                <option value="TODOS">Ver Todos los Estatus</option>
+                                <option value="PENDIENTE">Sólo PENDIENTE</option>
+                                <option value="ENTREGADO">Sólo ENTREGADO</option>
+                                <option value="ANULADA">Sólo ANULADA</option>
+                                <option value="RECIBIDO_CB">Sólo RECIBIDO CB</option>
+                            </select>
                         </div>
                         
-                        <!-- BOTONES DE IMPORTACIÓN MANUAL Y LIMPIEZA DE LOTES -->
-                        <div class="flex items-center gap-3">
+                        <!-- BOTONES DE IMPORTACIÓN Y LIMPIEZA (SOLO DESARROLLADOR Y LOGÍSTICA) -->
+                        <div id="contenedorBotonesImportar" class="hidden-content flex items-center gap-3">
                             <input type="file" id="inputArchivoExcel" accept=".xlsx, .xls, .csv" class="hidden" onchange="procesarArchivoExcelLocal(event)">
                             <button onclick="document.getElementById('inputArchivoExcel').click()" class="px-5 py-3 bg-orange-altrom hover:bg-red-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2">
                                 📥 Importar Excel / CSV
@@ -425,6 +437,13 @@
                 document.getElementById('btnAbrirFormReportes').classList.add('hidden-content');
             }
 
+            // PERMISO DE IMPORTACIÓN EXCEL SOLO PARA DESARROLLADOR Y LOGÍSTICA
+            if (usuarioActual.rol === 'Desarrollador' || usuarioActual.rol === 'Logistica') {
+                document.getElementById('contenedorBotonesImportar').classList.remove('hidden-content');
+            } else {
+                document.getElementById('contenedorBotonesImportar').classList.add('hidden-content');
+            }
+
             cargarReportes();
             cargarLotesFacturasGuardados();
         }
@@ -547,12 +566,12 @@
         }
 
         // ==========================================================
-        // CHECKBOX DE RECIBIDO CB CON AUDITORÍA Y BLOQUEO PARA CUENTAS POR COBRAR
+        // CHECKBOX DE RECIBIDO CB CON AUDITORÍA Y CONTROL ESTRICTO
         // ==========================================================
         async function modificarTildeRecibidoCB(idFactura, tildado) {
             if (!mapaFacturasDB[idFactura]) mapaFacturasDB[idFactura] = { estatus: 'PENDIENTE', recibido_cb: false };
             
-            // Restricción: Si el rol es Cuentas por cobrar y ya estaba marcado, no se puede desmarcar
+            // Restricción: Si Cuentas por Cobrar intenta desmarcar una que ya estaba recibida
             if (usuarioActual.rol === 'Cuentas por cobrar' && !tildado && mapaFacturasDB[idFactura].recibido_cb) {
                 alert("Atención: Como usuario de Cuentas por Cobrar no tienes permisos para desmarcar una factura ya recibida.");
                 procesarTablaPedidos();
@@ -764,17 +783,28 @@
                     renderEstatus = `<span class="px-3 py-1 ${colorStatus} rounded-full font-bold text-[9px]">${status}</span>`;
                 }
 
+                // RENDERING MEJORADO Y NÍTIDO DE RECIBIDO CB SEGÚN ROL
                 let renderRecibido = '';
-                if (usuarioActual.rol === 'Cuentas por cobrar' || usuarioActual.rol === 'Desarrollador') {
-                    // Si el rol es Cuentas por Cobrar y YA está recibido, se bloquea el checkbox (disabled)
-                    const estaBloqueado = (usuarioActual.rol === 'Cuentas por cobrar' && recibidoCB) ? 'disabled' : '';
-                    renderRecibido = `<input type="checkbox" ${recibidoCB ? 'checked' : ''} ${estaBloqueado} onchange="modificarTildeRecibidoCB('${nroDocumento}', this.checked)" class="w-4 h-4 accent-green-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">`;
+                if (usuarioActual.rol === 'Cuentas por cobrar') {
+                    if (recibidoCB) {
+                        // CASILLA MARCADA NÍTIDA (Insignia verde fija muy visible)
+                        renderRecibido = `<span class="inline-flex items-center justify-center bg-green-600 text-white font-bold text-[11px] px-2.5 py-1 rounded-md shadow-sm">✓ RECIBIDO</span>`;
+                    } else {
+                        // CASILLA LIBRE PARA MARCAR
+                        renderRecibido = `<input type="checkbox" onchange="modificarTildeRecibidoCB('${nroDocumento}', this.checked)" class="w-5 h-5 accent-green-600 cursor-pointer">`;
+                    }
+                } else if (usuarioActual.rol === 'Desarrollador') {
+                    // El Desarrollador mantiene control total para marcar y desmarcar
+                    renderRecibido = `<input type="checkbox" ${recibidoCB ? 'checked' : ''} onchange="modificarTildeRecibidoCB('${nroDocumento}', this.checked)" class="w-5 h-5 accent-green-600 cursor-pointer">`;
                 } else {
+                    // Para otros roles (Logística, Visualizador)
                     renderRecibido = recibidoCB ? '<span class="text-green-600 font-bold text-xs">✓ RECIBIDO</span>' : '<span class="text-gray-300 text-[10px]">PTE</span>';
                 }
 
                 html += `
-                    <tr class="border-t hover:bg-gray-50 transition-all">
+                    <tr class="border-t hover:bg-gray-50 transition-all data-row-pedido" 
+                        data-estatus="${status}" 
+                        data-recibido="${recibidoCB}">
                         <td class="p-4 font-bold text-gray-700">${nroDocumento}</td>
                         <td class="p-4 font-bold uppercase text-red-700 text-[10px]">${cliente}</td>
                         <td class="p-4 text-gray-500 uppercase">${ruta}</td>
@@ -788,12 +818,37 @@
             });
             
             tabla.innerHTML = html || '<tr><td colspan="9" class="p-10 text-center text-gray-400 font-bold uppercase tracking-widest">Sin registros activos. Haz clic en "Importar Excel / CSV" para cargar facturas.</td></tr>';
+            filtrarPedidos(); // Aplica cualquier filtro de texto o estatus activo
         }
 
+        // ==========================================================
+        // FILTRADO DINÁMICO COMBINADO (TEXTO + SELECT DE ESTATUS)
+        // ==========================================================
         function filtrarPedidos() {
-            const input = document.getElementById('buscadorPedidos').value.toUpperCase();
-            const filas = document.querySelectorAll('#tablaPedidos tr');
-            filas.forEach(f => { f.style.display = f.innerText.toUpperCase().includes(input) ? '' : 'none'; });
+            const textoBuscador = document.getElementById('buscadorPedidos').value.toUpperCase();
+            const estatusFiltro = document.getElementById('filtroEstatusPedidos').value;
+            const filas = document.querySelectorAll('#tablaPedidos tr.data-row-pedido');
+
+            filas.forEach(f => {
+                const textoFila = f.innerText.toUpperCase();
+                const estatusFila = f.getAttribute('data-estatus');
+                const recibidoFila = f.getAttribute('data-recibido') === 'true';
+
+                const coincideTexto = textoFila.includes(textoBuscador);
+                let coincideEstatus = true;
+
+                if (estatusFiltro === 'RECIBIDO_CB') {
+                    coincideEstatus = recibidoFila;
+                } else if (estatusFiltro !== 'TODOS') {
+                    coincideEstatus = (estatusFila === estatusFiltro);
+                }
+
+                if (coincideTexto && coincideEstatus) {
+                    f.style.display = '';
+                } else {
+                    f.style.display = 'none';
+                }
+            });
         }
 
         function filtrarReportes() {
