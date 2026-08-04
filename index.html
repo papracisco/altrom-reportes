@@ -605,18 +605,18 @@
             }
         }
 
-        // FUNCIÓN MEJORADA Y RIGUROSA PARA LIMPIAR Y PARSEAR MONTOS LATINOS/ESPAÑOLES
+        // PARSER RIGUROSO DE MONTOS EN FORMATO LATINO / VENEZOLANO
         function limpiarMonto(val) {
             if (val === null || val === undefined || val === '') return 0;
             if (typeof val === 'number') return isNaN(val) ? 0 : val;
             
             let str = String(val).trim();
             
-            // Si el string contiene tanto punto como coma (ej. 569.496,58)
+            // Si viene en formato latino completo (ej: "569.496,58")
             if (str.includes('.') && str.includes(',')) {
                 str = str.replace(/\./g, '').replace(',', '.');
             } else if (str.includes(',')) {
-                // Si solo contiene comas, asumimos coma como decimal
+                // Si solo contiene comas (ej: "569496,58")
                 str = str.replace(',', '.');
             }
             
@@ -624,16 +624,23 @@
             return isNaN(num) ? 0 : num;
         }
 
+        // CONVERTIDOR ESTRICTO DE FECHAS (PRESERVA EL STRING DD/MM/YYYY SIN INTERPRETAR)
         function convertirFechaExcelATexto(val) {
             if (!val) return '';
-            if (typeof val === 'string' && val.includes('/')) return val;
-            if (typeof val === 'string' && val.includes('-')) {
-                const partes = val.split('T')[0].split('-');
-                if(partes.length === 3) return `${partes[2]}/${partes[1]}/${partes[0]}`;
-                return val;
+            const strVal = String(val).trim();
+            
+            // Si ya es una cadena legible "DD/MM/YYYY" o "DD-MM-YYYY", no pasar por objeto Date
+            if (strVal.includes('/')) return strVal;
+            if (strVal.includes('-')) {
+                const partes = strVal.split('T')[0].split('-');
+                if(partes.length === 3 && partes[0].length === 4) {
+                    return `${partes[2]}/${partes[1]}/${partes[0]}`; // YYYY-MM-DD -> DD/MM/YYYY
+                }
+                return strVal;
             }
             
-            const num = parseFloat(val);
+            // Solo si es un número de serie entero/flotante de Excel (ej: 46270)
+            const num = parseFloat(strVal);
             if (!isNaN(num) && num > 30000) {
                 const dateObj = XLSX.SSF.parse_date_code(num);
                 if (dateObj) {
@@ -643,7 +650,7 @@
                     return `${dia}/${mes}/${anio}`;
                 }
             }
-            return String(val);
+            return strVal;
         }
 
         // ==========================================================
@@ -797,9 +804,9 @@
                 const cliente = item.cliente || 'N/A';
                 const ruta = item.ruta || 'N/A';
                 
-                // Conversión rigurosa de fecha para evitar números flotantes seriales de Excel
-                const emision = convertirFechaExcelATexto(item.fecha_emision || item[1]);
-                const venc = convertirFechaExcelATexto(item.fecha_venc || item[2]);
+                // Garantiza el formato del texto original sin parseos erróneos
+                const emision = convertirFechaExcelATexto(item.fecha_emision);
+                const venc = convertirFechaExcelATexto(item.fecha_venc);
                 
                 const montoBs = item.monto_bs || '0,00';
                 const montoUSD = item.monto_usd || '0,00';
@@ -848,7 +855,6 @@
 
             let finalY = doc.lastAutoTable.finalY + 8;
 
-            // Resumen de Totales
             doc.setFont("helvetica", "bold");
             doc.setFontSize(9);
             doc.setTextColor(30, 60, 120);
@@ -887,10 +893,10 @@
                 const nroDocumento = item.nro_doc || item[7] || 'N/A'; 
                 const cliente = item.cliente || item[5] || 'N/A';      
                 const ruta = item.ruta || item[3] || 'N/A';         
-                const fechaEmision = convertirFechaExcelATexto(item.fecha_emision || item[1]);   
-                const fechaVenc = convertirFechaExcelATexto(item.fecha_venc || item[2]);      
-                const montoBs = item.monto_bs || item[14] || '0.00';    
-                const montoUSD = item.monto_usd || item[15] || '0.00';   
+                const fechaEmision = convertirFechaExcelATexto(item.fecha_emision);   
+                const fechaVenc = convertirFechaExcelATexto(item.fecha_venc);      
+                const montoBs = item.monto_bs || '0.00';    
+                const montoUSD = item.monto_usd || '0.00';   
 
                 const datosDB = mapaFacturasDB[nroDocumento] || { estatus: 'PENDIENTE', recibido_cb: false };
                 const status = datosDB.estatus;
