@@ -605,18 +605,16 @@
             }
         }
 
-        // PARSER RIGUROSO DE MONTOS EN FORMATO LATINO / VENEZOLANO
+        // PARSER RIGUROSO DE MONTOS (SOPORTA FORMATO LATINO Y NÚMEROS DIRECTOS)
         function limpiarMonto(val) {
             if (val === null || val === undefined || val === '') return 0;
             if (typeof val === 'number') return isNaN(val) ? 0 : val;
             
             let str = String(val).trim();
             
-            // Si viene en formato latino completo (ej: "569.496,58")
             if (str.includes('.') && str.includes(',')) {
                 str = str.replace(/\./g, '').replace(',', '.');
             } else if (str.includes(',')) {
-                // Si solo contiene comas (ej: "569496,58")
                 str = str.replace(',', '.');
             }
             
@@ -624,22 +622,20 @@
             return isNaN(num) ? 0 : num;
         }
 
-        // CONVERTIDOR ESTRICTO DE FECHAS (PRESERVA EL STRING DD/MM/YYYY SIN INTERPRETAR)
+        // LECTURA DIRECTA DE CELDAS DE TEXTO (NUNCA INTERPRETA DATE OBJS DE EXCEL)
         function convertirFechaExcelATexto(val) {
             if (!val) return '';
             const strVal = String(val).trim();
             
-            // Si ya es una cadena legible "DD/MM/YYYY" o "DD-MM-YYYY", no pasar por objeto Date
             if (strVal.includes('/')) return strVal;
             if (strVal.includes('-')) {
                 const partes = strVal.split('T')[0].split('-');
                 if(partes.length === 3 && partes[0].length === 4) {
-                    return `${partes[2]}/${partes[1]}/${partes[0]}`; // YYYY-MM-DD -> DD/MM/YYYY
+                    return `${partes[2]}/${partes[1]}/${partes[0]}`;
                 }
                 return strVal;
             }
             
-            // Solo si es un número de serie entero/flotante de Excel (ej: 46270)
             const num = parseFloat(strVal);
             if (!isNaN(num) && num > 30000) {
                 const dateObj = XLSX.SSF.parse_date_code(num);
@@ -654,7 +650,7 @@
         }
 
         // ==========================================================
-        // IMPORTACIÓN Y UNIFICACIÓN CON SUMATORIA EXACTA DE MONTOS
+        // IMPORTACIÓN DIRECTA RAW CON SHEETJS (cellDates: false, raw: true)
         // ==========================================================
         async function procesarArchivoExcelLocal(event) {
             const file = event.target.files[0];
@@ -664,10 +660,11 @@
             reader.onload = async function(e) {
                 try {
                     const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
+                    // raw: true para leer los strings exactamente como están sin parsear fechas
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: false, raw: true });
                     const firstSheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[firstSheetName];
-                    const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true });
 
                     if (jsonRows.length <= 1) {
                         alert("El archivo no contiene filas de datos.");
@@ -804,7 +801,6 @@
                 const cliente = item.cliente || 'N/A';
                 const ruta = item.ruta || 'N/A';
                 
-                // Garantiza el formato del texto original sin parseos erróneos
                 const emision = convertirFechaExcelATexto(item.fecha_emision);
                 const venc = convertirFechaExcelATexto(item.fecha_venc);
                 
