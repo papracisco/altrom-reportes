@@ -605,13 +605,12 @@
             }
         }
 
-        // PARSER RIGUROSO DE MONTOS (SOPORTA FORMATO LATINO Y NÚMEROS DIRECTOS)
+        // PARSER DE MONTOS (FLOTANTES Y STRINGS LATINOS)
         function limpiarMonto(val) {
             if (val === null || val === undefined || val === '') return 0;
             if (typeof val === 'number') return isNaN(val) ? 0 : val;
             
             let str = String(val).trim();
-            
             if (str.includes('.') && str.includes(',')) {
                 str = str.replace(/\./g, '').replace(',', '.');
             } else if (str.includes(',')) {
@@ -622,20 +621,33 @@
             return isNaN(num) ? 0 : num;
         }
 
-        // LECTURA DIRECTA DE CELDAS DE TEXTO (NUNCA INTERPRETA DATE OBJS DE EXCEL)
+        // CONVERTIDOR RIGUROSO DE FECHAS (LEGIBLES Y OBJETOS DATE)
         function convertirFechaExcelATexto(val) {
             if (!val) return '';
+            
+            // Si ya es un objeto Date nativo de JS (como en el nuevo Excel)
+            if (val instanceof Date) {
+                const dia = String(val.getDate()).padStart(2, '0');
+                const mes = String(val.getMonth() + 1).padStart(2, '0');
+                const anio = val.getFullYear();
+                return `${dia}/${mes}/${anio}`;
+            }
+
             const strVal = String(val).trim();
             
-            if (strVal.includes('/')) return strVal;
+            // Si es un ISO String tipo YYYY-MM-DD
             if (strVal.includes('-')) {
                 const partes = strVal.split('T')[0].split('-');
                 if(partes.length === 3 && partes[0].length === 4) {
-                    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+                    return `${partes[2]}/${partes[1]}/${partes[0]}`; // YYYY-MM-DD -> DD/MM/YYYY
                 }
                 return strVal;
             }
             
+            // Si ya tiene /
+            if (strVal.includes('/')) return strVal;
+            
+            // Si es serial numérico de Excel
             const num = parseFloat(strVal);
             if (!isNaN(num) && num > 30000) {
                 const dateObj = XLSX.SSF.parse_date_code(num);
@@ -650,7 +662,7 @@
         }
 
         // ==========================================================
-        // IMPORTACIÓN DIRECTA RAW CON SHEETJS (cellDates: false, raw: true)
+        // IMPORTACIÓN DINÁMICA POR NOMBRE DE COLUMNA (SOPORTA AMBOS FORMATOS)
         // ==========================================================
         async function procesarArchivoExcelLocal(event) {
             const file = event.target.files[0];
@@ -660,16 +672,35 @@
             reader.onload = async function(e) {
                 try {
                     const data = new Uint8Array(e.target.result);
-                    // raw: true para leer los strings exactamente como están sin parsear fechas
-                    const workbook = XLSX.read(data, { type: 'array', cellDates: false, raw: true });
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true, raw: false });
                     const firstSheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[firstSheetName];
-                    const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true });
+                    const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false });
 
                     if (jsonRows.length <= 1) {
                         alert("El archivo no contiene filas de datos.");
                         return;
                     }
+
+                    // Búsqueda dinámica de índices de columnas según el encabezado (Fila 0)
+                    const header = jsonRows[0].map(h => String(headerVal(h)).toUpperCase());
+                    
+                    let idxDoc = header.findIndex(h => h.includes('NÚMERO DE DOCUMENTO') || h.includes('NUMERO DE DOCUMENTO') || h.includes('DOCUMENTO'));
+                    let idxCliente = header.findIndex(h => h.includes('NOMBRE DE CLIENTE') || h.includes('CLIENTE') || h.includes('PROVEEDOR'));
+                    let idxRuta = header.findIndex(h => h.includes('VENDEDOR') || h.includes('RUTA'));
+                    let idxEmision = header.findIndex(h => h.includes('EMISIÓN') || h.includes('EMISION'));
+                    let idxVenc = header.findIndex(h => h.includes('VENCIMIENTO'));
+                    let idxBs = header.findIndex(h => h.includes('MONTO EN BS') || h.includes('MONTO BS'));
+                    let idxUSD = header.findIndex(h => h.includes('MONTO EN $') || h.includes('MONTO $'));
+
+                    // Fallback a índices estáticos si no se encuentran por nombre
+                    if (idxDoc === -1) idxDoc = 7;
+                    if (idxCliente === -1) idxCliente = 5;
+                    if (idxRuta === -1) idxRuta = 3;
+                    if (idxEmision === -1) idxEmision = 1;
+                    if (idxVenc === -1) idxVenc = 2;
+                    if (idxBs === -1) idxBs = 14;
+                    if (idxUSD === -1) idxUSD = 15;
 
                     const mapaAgrupado = {};
 
@@ -677,15 +708,15 @@
                         const row = jsonRows[i];
                         if (!row || row.length === 0) continue;
 
-                        const nroDoc = row[7] ? String(row[7]).trim() : '';
+                        const nroDoc = row[idxDoc] ? String(row[idxDoc]).trim() : '';
                         if (!nroDoc) continue;
 
-                        const fechaEmision = convertirFechaExcelATexto(row[1]);
-                        const fechaVenc = convertirFechaExcelATexto(row[2]);
-                        const ruta = row[3] ? String(row[3]).trim() : 'N/A';
-                        const cliente = row[5] ? String(row[5]).trim() : 'N/A';
-                        const montoBsVal = limpiarMonto(row[14]);
-                        const montoUSDVal = limpiarMonto(row[15]);
+                        const fechaEmision = convertirFechaExcelATexto(row[idxEmision]);
+                        const fechaVenc = convertirFechaExcelATexto(row[idxVenc]);
+                        const ruta = row[idxRuta] ? String(row[idxRuta]).trim() : 'N/A';
+                        const cliente = row[idxCliente] ? String(row[idxCliente]).trim() : 'N/A';
+                        const montoBsVal = limpiarMonto(row[idxBs]);
+                        const montoUSDVal = limpiarMonto(row[idxUSD]);
 
                         if (!mapaAgrupado[nroDoc]) {
                             mapaAgrupado[nroDoc] = {
@@ -731,6 +762,10 @@
                 }
             };
             reader.readAsArrayBuffer(file);
+        }
+
+        function headerVal(v) {
+            return (v === null || v === undefined) ? '' : v;
         }
 
         async function cargarLotesFacturasGuardados() {
