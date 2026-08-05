@@ -563,27 +563,34 @@
             mapaFacturasDB = {};
             if (data) {
                 data.forEach(f => {
-                    mapaFacturasDB[f.id_factura] = { estatus: f.estatus, recibido_cb: f.recibido_cb };
+                    mapaFacturasDB[f.id_factura] = { 
+                        estatus: f.estatus, 
+                        recibido_cb: f.recibido_cb,
+                        fecha_recibido: f.fecha_recibido || ''
+                    };
                 });
             }
         }
 
         async function modificarEstatusFacturaDB(idFactura, valor) {
-            if (!mapaFacturasDB[idFactura]) mapaFacturasDB[idFactura] = { estatus: 'PENDIENTE', recibido_cb: false };
+            if (!mapaFacturasDB[idFactura]) mapaFacturasDB[idFactura] = { estatus: 'PENDIENTE', recibido_cb: false, fecha_recibido: '' };
             mapaFacturasDB[idFactura].estatus = valor;
 
             const { data } = await _supabase.from('control_facturas').select('id_factura').eq('id_factura', idFactura);
             if (data && data.length > 0) {
                 await _supabase.from('control_facturas').update({ estatus: valor }).eq('id_factura', idFactura);
             } else {
-                await _supabase.from('control_facturas').insert([{ id_factura: idFactura, estatus: valor, recibido_cb: false }]);
+                await _supabase.from('control_facturas').insert([{ id_factura: idFactura, estatus: valor, recibido_cb: false, fecha_recibido: '' }]);
             }
             registrarAuditoria("CAMBIO_ESTATUS_FACTURA", `Factura N° ${idFactura} cambió a ${valor}`);
             procesarTablaPedidos(); 
         }
 
+        // ==========================================================
+        // CHECKBOX CON CAPTURA DE FECHA Y HORA DE RECEPCIÓN
+        // ==========================================================
         async function modificarTildeRecibidoCB(idFactura, tildado) {
-            if (!mapaFacturasDB[idFactura]) mapaFacturasDB[idFactura] = { estatus: 'PENDIENTE', recibido_cb: false };
+            if (!mapaFacturasDB[idFactura]) mapaFacturasDB[idFactura] = { estatus: 'PENDIENTE', recibido_cb: false, fecha_recibido: '' };
             
             if (usuarioActual.rol === 'Cuentas por cobrar' && !tildado && mapaFacturasDB[idFactura].recibido_cb) {
                 alert("Atención: Como usuario de Cuentas por Cobrar no tienes permisos para desmarcar una factura ya recibida.");
@@ -591,34 +598,40 @@
                 return;
             }
 
+            // Capturar fecha y hora exacta si se marca como recibido
+            let fechaHoraStr = '';
+            if (tildado) {
+                const ahora = new Date();
+                fechaHoraStr = ahora.toLocaleDateString('es-VE') + ' ' + ahora.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+            }
+
             mapaFacturasDB[idFactura].recibido_cb = tildado;
+            mapaFacturasDB[idFactura].fecha_recibido = fechaHoraStr;
+            
             procesarTablaPedidos();
 
-            const estadoTexto = tildado ? "MARCADO COMO RECIBIDO" : "DESMARCADO DE RECIBIDO";
+            const estadoTexto = tildado ? `MARCADO COMO RECIBIDO (${fechaHoraStr})` : "DESMARCADO DE RECIBIDO";
             registrarAuditoria("CAMBIO_RECIBIDO_CB", `Factura N° ${idFactura} -> ${estadoTexto}`);
 
             const { data } = await _supabase.from('control_facturas').select('id_factura').eq('id_factura', idFactura);
             if (data && data.length > 0) {
-                await _supabase.from('control_facturas').update({ recibido_cb: tildado }).eq('id_factura', idFactura);
+                await _supabase.from('control_facturas').update({ recibido_cb: tildado, fecha_recibido: fechaHoraStr }).eq('id_factura', idFactura);
             } else {
-                await _supabase.from('control_facturas').insert([{ id_factura: idFactura, estatus: 'PENDIENTE', recibido_cb: tildado }]);
+                await _supabase.from('control_facturas').insert([{ id_factura: idFactura, estatus: 'PENDIENTE', recibido_cb: tildado, fecha_recibido: fechaHoraStr }]);
             }
         }
 
-        // PARSER UNIVERSAL DE MONTOS (MANEJA FLOTANTES, FORMATO LATINO Y AMERICANO)
+        // PARSER UNIVERSAL DE MONTOS
         function limpiarMonto(val) {
             if (val === null || val === undefined || val === '') return 0;
             if (typeof val === 'number') return isNaN(val) ? 0 : val;
             
             let str = String(val).trim();
             
-            // Si el string viene en formato US (ej. "57,327.36")
             if (str.includes(',') && str.includes('.')) {
                 if (str.indexOf(',') < str.indexOf('.')) {
-                    // Formato US: 57,327.36 -> eliminar comas
                     str = str.replace(/,/g, '');
                 } else {
-                    // Formato Latino: 57.327,36 -> eliminar puntos y convertir coma en punto
                     str = str.replace(/\./g, '').replace(',', '.');
                 }
             } else if (str.includes(',')) {
@@ -629,7 +642,7 @@
             return isNaN(num) ? 0 : num;
         }
 
-        // CONVERTIDOR RIGUROSO DE FECHAS (LEGIBLES Y OBJETOS DATE)
+        // CONVERTIDOR RIGUROSO DE FECHAS
         function convertirFechaExcelATexto(val) {
             if (!val) return '';
             
@@ -666,7 +679,7 @@
         }
 
         // ==========================================================
-        // IMPORTACIÓN DINÁMICA POR NOMBRE DE COLUMNA (raw: true PARA LECTURA PURA)
+        // IMPORTACIÓN DINÁMICA DE EXCEL
         // ==========================================================
         async function procesarArchivoExcelLocal(event) {
             const file = event.target.files[0];
@@ -676,7 +689,6 @@
             reader.onload = async function(e) {
                 try {
                     const data = new Uint8Array(e.target.result);
-                    // IMPORTANTE: raw: true previene que SheetJS altere los números flotantes
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true, raw: true });
                     const firstSheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[firstSheetName];
@@ -687,7 +699,6 @@
                         return;
                     }
 
-                    // Búsqueda prioritaria de los encabezados (Fila 0)
                     const header = jsonRows[0].map(h => String(headerVal(h)).toUpperCase().trim());
                     
                     let idxDoc = header.findIndex(h => h.includes('NÚMERO DE DOCUMENTO') || h.includes('NUMERO DE DOCUMENTO'));
@@ -807,7 +818,7 @@
         }
 
         // ==========================================================
-        // EXPORTACIÓN DE REPORTE CON CORRECCIÓN RIGUROSA DE FECHAS
+        // EXPORTACIÓN DE REPORTE CON FECHA Y HORA EN RECIBIDO CB
         // ==========================================================
         function exportarCierrePDF() {
             if (!cacheFilasDrive || cacheFilasDrive.length === 0) {
@@ -850,9 +861,14 @@
                 const montoBs = item.monto_bs || '0,00';
                 const montoUSD = item.monto_usd || '0,00';
 
-                const datosDB = mapaFacturasDB[nroDoc] || { estatus: 'PENDIENTE', recibido_cb: false };
+                const datosDB = mapaFacturasDB[nroDoc] || { estatus: 'PENDIENTE', recibido_cb: false, fecha_recibido: '' };
                 const estatus = datosDB.estatus;
-                const recibido = datosDB.recibido_cb ? 'SI (RECIBIDO)' : 'NO (PTE)';
+                
+                // Muestra la fecha y hora exacta de recepción en el PDF
+                let recibido = 'NO (PTE)';
+                if (datosDB.recibido_cb) {
+                    recibido = datosDB.fecha_recibido ? `SI (${datosDB.fecha_recibido})` : 'SI (RECIBIDO)';
+                }
 
                 totalBs += limpiarMonto(montoBs);
                 totalUSD += limpiarMonto(montoUSD);
@@ -867,7 +883,7 @@
                 body: filasTabla,
                 theme: 'grid',
                 styles: {
-                    fontSize: 7.5,
+                    fontSize: 7,
                     textColor: [0, 0, 0],
                     lineColor: COLOR_LINEA_AZUL,
                     lineWidth: 0.15,
@@ -880,15 +896,15 @@
                     halign: 'center'
                 },
                 columnStyles: {
-                    0: { cellWidth: 20, fontStyle: 'bold' },
-                    1: { cellWidth: 70 },
-                    2: { cellWidth: 25 },
-                    3: { cellWidth: 24, halign: 'center' },
-                    4: { cellWidth: 24, halign: 'center' },
-                    5: { cellWidth: 32, halign: 'right' },
-                    6: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
-                    7: { cellWidth: 24, halign: 'center', fontStyle: 'bold' },
-                    8: { cellWidth: 22, halign: 'center' }
+                    0: { cellWidth: 18, fontStyle: 'bold' },
+                    1: { cellWidth: 65 },
+                    2: { cellWidth: 22 },
+                    3: { cellWidth: 22, halign: 'center' },
+                    4: { cellWidth: 22, halign: 'center' },
+                    5: { cellWidth: 30, halign: 'right' },
+                    6: { cellWidth: 25, halign: 'right', fontStyle: 'bold' },
+                    7: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
+                    8: { cellWidth: 43, halign: 'center' }
                 }
             });
 
@@ -937,9 +953,10 @@
                 const montoBs = item.monto_bs || '0.00';    
                 const montoUSD = item.monto_usd || '0.00';   
 
-                const datosDB = mapaFacturasDB[nroDocumento] || { estatus: 'PENDIENTE', recibido_cb: false };
+                const datosDB = mapaFacturasDB[nroDocumento] || { estatus: 'PENDIENTE', recibido_cb: false, fecha_recibido: '' };
                 const status = datosDB.estatus;
                 const recibidoCB = datosDB.recibido_cb;
+                const fechaRecibidoCB = datosDB.fecha_recibido || '';
 
                 let colorStatus = 'bg-blue-50 text-blue-600';
                 if (status === 'ENTREGADO') colorStatus = 'bg-green-50 text-green-600';
@@ -957,17 +974,28 @@
                     renderEstatus = `<span class="px-3 py-1 ${colorStatus} rounded-full font-bold text-[9px]">${status}</span>`;
                 }
 
+                // RENDERING VISUAL CON FECHA Y HORA EN RECIBIDO CB
                 let renderRecibido = '';
                 if (usuarioActual.rol === 'Cuentas por cobrar') {
                     if (recibidoCB) {
-                        renderRecibido = `<span class="inline-flex items-center justify-center bg-green-600 text-white font-bold text-[11px] px-2.5 py-1 rounded-md shadow-sm">✓ RECIBIDO</span>`;
+                        renderRecibido = `
+                            <div class="inline-flex flex-col items-center">
+                                <span class="bg-green-600 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-md shadow-sm">✓ RECIBIDO</span>
+                                <span class="text-[9px] text-gray-500 font-semibold mt-1">${fechaRecibidoCB}</span>
+                            </div>`;
                     } else {
                         renderRecibido = `<input type="checkbox" onchange="modificarTildeRecibidoCB('${nroDocumento}', this.checked)" class="w-5 h-5 accent-green-600 cursor-pointer">`;
                     }
                 } else if (usuarioActual.rol === 'Desarrollador') {
-                    renderRecibido = `<input type="checkbox" ${recibidoCB ? 'checked' : ''} onchange="modificarTildeRecibidoCB('${nroDocumento}', this.checked)" class="w-5 h-5 accent-green-600 cursor-pointer">`;
+                    renderRecibido = `
+                        <div class="flex flex-col items-center">
+                            <input type="checkbox" ${recibidoCB ? 'checked' : ''} onchange="modificarTildeRecibidoCB('${nroDocumento}', this.checked)" class="w-5 h-5 accent-green-600 cursor-pointer">
+                            ${recibidoCB && fechaRecibidoCB ? `<span class="text-[8px] text-gray-500 font-semibold mt-1">${fechaRecibidoCB}</span>` : ''}
+                        </div>`;
                 } else {
-                    renderRecibido = recibidoCB ? '<span class="text-green-600 font-bold text-xs">✓ RECIBIDO</span>' : '<span class="text-gray-300 text-[10px]">PTE</span>';
+                    renderRecibido = recibidoCB 
+                        ? `<div class="inline-flex flex-col items-center"><span class="text-green-600 font-bold text-xs">✓ RECIBIDO</span><span class="text-[8px] text-gray-400 font-semibold">${fechaRecibidoCB}</span></div>` 
+                        : '<span class="text-gray-300 text-[10px]">PTE</span>';
                 }
 
                 html += `
