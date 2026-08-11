@@ -66,7 +66,7 @@
         <div class="max-w-md bg-gray-800 p-8 rounded-3xl border border-gray-700 shadow-2xl">
             <span class="text-6xl block mb-4">⏳</span>
             <h2 class="font-reporte text-2xl text-orange-altrom uppercase mb-3">Acceso Restringido</h2>
-            <p class="text-sm text-gray-400 leading-relaxed mb-6">Tu cuenta ha sido creada exitosamente pero se encuentra **En espera de aprobación** por el Desarrollador. Se te notificará una vez seas verificado por la administración.</p>
+            <p class="text-sm text-gray-400 leading-relaxed mb-6">Tu cuenta ha sido creada exitosamente pero se encuentra **En espera de aprobación** por el Desarrollador. Se te notified una vez seas verificado por la administración.</p>
             <button onclick="location.reload()" class="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-xl text-xs font-bold uppercase tracking-widest">Regresar al Login</button>
         </div>
     </div>
@@ -175,7 +175,7 @@
                 <div class="bg-white rounded-3xl shadow-sm border p-6">
                     <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
                         
-                        <!-- BUSCADOR + FILTRO DINÁMICO DE ESTATUS -->
+                        <!-- BUSCADOR + FILTRO DINÁMICO DE ESTATUS (NUEVA OPCIÓN NO RECIBIDAS) -->
                         <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
                             <div class="relative w-full sm:w-80">
                                 <input type="text" id="buscadorPedidos" onkeyup="filtrarPedidos()" placeholder="Buscar Factura o Cliente..." class="w-full p-3 pl-10 rounded-xl bg-gray-50 border border-gray-100 text-sm outline-none focus:ring-2 focus:ring-orange-500 uppercase">
@@ -188,6 +188,7 @@
                                 <option value="ENTREGADO">Sólo ENTREGADO</option>
                                 <option value="ANULADA">Sólo ANULADA</option>
                                 <option value="RECIBIDO_CB">Sólo RECIBIDO CB</option>
+                                <option value="NO_RECIBIDO">Sólo ENTREGADAS (NO RECIBIDAS)</option>
                             </select>
                         </div>
                         
@@ -559,17 +560,34 @@
         }
 
         async function syncFacturasSupabase() {
+            const localRecibidos = JSON.parse(localStorage.getItem('altrom_recibidos_local') || '{}');
+            
             const { data } = await _supabase.from('control_facturas').select('*');
             mapaFacturasDB = {};
+            
             if (data) {
                 data.forEach(f => {
+                    const loc = localRecibidos[f.id_factura];
                     mapaFacturasDB[f.id_factura] = { 
-                        estatus: f.estatus, 
-                        recibido_cb: f.recibido_cb,
-                        fecha_recibido: f.fecha_recibido || ''
+                        estatus: f.estatus || 'PENDIENTE', 
+                        recibido_cb: f.recibido_cb || (loc ? loc.recibido : false),
+                        fecha_recibido: f.fecha_recibido || (loc ? loc.fecha : '')
                     };
                 });
             }
+
+            Object.keys(localRecibidos).forEach(idFact => {
+                if (!mapaFacturasDB[idFact]) {
+                    mapaFacturasDB[idFact] = {
+                        estatus: 'PENDIENTE',
+                        recibido_cb: localRecibidos[idFact].recibido,
+                        fecha_recibido: localRecibidos[idFact].fecha
+                    };
+                } else if (localRecibidos[idFact].recibido) {
+                    mapaFacturasDB[idFact].recibido_cb = true;
+                    mapaFacturasDB[idFact].fecha_recibido = localRecibidos[idFact].fecha;
+                }
+            });
         }
 
         async function modificarEstatusFacturaDB(idFactura, valor) {
@@ -587,7 +605,7 @@
         }
 
         // ==========================================================
-        // CHECKBOX CON CAPTURA DE FECHA Y HORA DE RECEPCIÓN
+        // CHECKBOX CON CAPTURA Y RESPALDO DUAL (SUPABASE + LOCALSTORAGE)
         // ==========================================================
         async function modificarTildeRecibidoCB(idFactura, tildado) {
             if (!mapaFacturasDB[idFactura]) mapaFacturasDB[idFactura] = { estatus: 'PENDIENTE', recibido_cb: false, fecha_recibido: '' };
@@ -598,7 +616,6 @@
                 return;
             }
 
-            // Capturar fecha y hora exacta si se marca como recibido
             let fechaHoraStr = '';
             if (tildado) {
                 const ahora = new Date();
@@ -608,16 +625,32 @@
             mapaFacturasDB[idFactura].recibido_cb = tildado;
             mapaFacturasDB[idFactura].fecha_recibido = fechaHoraStr;
             
+            const localRecibidos = JSON.parse(localStorage.getItem('altrom_recibidos_local') || '{}');
+            localRecibidos[idFactura] = { recibido: tildado, fecha: fechaHoraStr };
+            localStorage.setItem('altrom_recibidos_local', JSON.stringify(localRecibidos));
+
             procesarTablaPedidos();
 
             const estadoTexto = tildado ? `MARCADO COMO RECIBIDO (${fechaHoraStr})` : "DESMARCADO DE RECIBIDO";
             registrarAuditoria("CAMBIO_RECIBIDO_CB", `Factura N° ${idFactura} -> ${estadoTexto}`);
 
-            const { data } = await _supabase.from('control_facturas').select('id_factura').eq('id_factura', idFactura);
-            if (data && data.length > 0) {
-                await _supabase.from('control_facturas').update({ recibido_cb: tildado, fecha_recibido: fechaHoraStr }).eq('id_factura', idFactura);
-            } else {
-                await _supabase.from('control_facturas').insert([{ id_factura: idFactura, estatus: 'PENDIENTE', recibido_cb: tildado, fecha_recibido: fechaHoraStr }]);
+            try {
+                const { data } = await _supabase.from('control_facturas').select('id_factura').eq('id_factura', idFactura);
+                if (data && data.length > 0) {
+                    await _supabase.from('control_facturas').update({ 
+                        recibido_cb: tildado, 
+                        fecha_recibido: fechaHoraStr 
+                    }).eq('id_factura', idFactura);
+                } else {
+                    await _supabase.from('control_facturas').insert([{ 
+                        id_factura: idFactura, 
+                        estatus: 'PENDIENTE', 
+                        recibido_cb: tildado, 
+                        fecha_recibido: fechaHoraStr 
+                    }]);
+                }
+            } catch (err) {
+                console.warn("Sincronización en la nube en segundo plano (datos seguros en local):", err);
             }
         }
 
@@ -864,7 +897,6 @@
                 const datosDB = mapaFacturasDB[nroDoc] || { estatus: 'PENDIENTE', recibido_cb: false, fecha_recibido: '' };
                 const estatus = datosDB.estatus;
                 
-                // Muestra la fecha y hora exacta de recepción en el PDF
                 let recibido = 'NO (PTE)';
                 if (datosDB.recibido_cb) {
                     recibido = datosDB.fecha_recibido ? `SI (${datosDB.fecha_recibido})` : 'SI (RECIBIDO)';
@@ -933,6 +965,7 @@
             if (confirm("⚠️ ¿Estás totalmente seguro de limpiar todas las tandas de facturas? Esto vaciará la lista para ingresar los nuevos lotes.")) {
                 try {
                     await _supabase.from('lotes_facturas_altrom').delete().neq('id', 0);
+                    localStorage.removeItem('altrom_recibidos_local');
                     registrarAuditoria("LIMPIAR_LOTES", "Vació todas las facturas importadas del mes");
                 } catch(e) {}
                 cacheFilasDrive = [];
@@ -1018,6 +1051,9 @@
             filtrarPedidos();
         }
 
+        // ==========================================================
+        // FILTRADO DINÁMICO COMBINADO (INCLUYE OPCIÓN NO_RECIBIDO)
+        // ==========================================================
         function filtrarPedidos() {
             const textoBuscador = document.getElementById('buscadorPedidos').value.toUpperCase();
             const estatusFiltro = document.getElementById('filtroEstatusPedidos').value;
@@ -1033,6 +1069,9 @@
 
                 if (estatusFiltro === 'RECIBIDO_CB') {
                     coincideEstatus = recibidoFila;
+                } else if (estatusFiltro === 'NO_RECIBIDO') {
+                    // Muestra únicamente las facturas ENTREGADAS que aún NO han sido recibidas
+                    coincideEstatus = (estatusFila === 'ENTREGADO' && !recibidoFila);
                 } else if (estatusFiltro !== 'TODOS') {
                     coincideEstatus = (estatusFila === estatusFiltro);
                 }
