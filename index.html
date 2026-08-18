@@ -66,7 +66,7 @@
         <div class="max-w-md bg-gray-800 p-8 rounded-3xl border border-gray-700 shadow-2xl">
             <span class="text-6xl block mb-4">⏳</span>
             <h2 class="font-reporte text-2xl text-orange-altrom uppercase mb-3">Acceso Restringido</h2>
-            <p class="text-sm text-gray-400 leading-relaxed mb-6">Tu cuenta ha sido creada exitosamente pero se encuentra **En espera de aprobación** por el Desarrollador. Se te notified una vez seas verificado por la administración.</p>
+            <p class="text-sm text-gray-400 leading-relaxed mb-6">Tu cuenta ha sido creada exitosamente pero se encuentra **En espera de aprobación** por el Desarrollador. Se te notificará una vez seas verificado por la administración.</p>
             <button onclick="location.reload()" class="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-xl text-xs font-bold uppercase tracking-widest">Regresar al Login</button>
         </div>
     </div>
@@ -175,7 +175,7 @@
                 <div class="bg-white rounded-3xl shadow-sm border p-6">
                     <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
                         
-                        <!-- BUSCADOR + FILTRO DINÁMICO DE ESTATUS (NUEVA OPCIÓN NO RECIBIDAS) -->
+                        <!-- BUSCADOR + FILTRO DINÁMICO DE ESTATUS -->
                         <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
                             <div class="relative w-full sm:w-80">
                                 <input type="text" id="buscadorPedidos" onkeyup="filtrarPedidos()" placeholder="Buscar Factura o Cliente..." class="w-full p-3 pl-10 rounded-xl bg-gray-50 border border-gray-100 text-sm outline-none focus:ring-2 focus:ring-orange-500 uppercase">
@@ -188,7 +188,7 @@
                                 <option value="ENTREGADO">Sólo ENTREGADO</option>
                                 <option value="ANULADA">Sólo ANULADA</option>
                                 <option value="RECIBIDO_CB">Sólo RECIBIDO CB</option>
-                                <option value="NO_RECIBIDO">Sólo ENTREGADAS (NO RECIBIDAS)</option>
+                                <option value="ENTREGADO_NO_RECIBIDO">Sólo ENTREGADAS (NO RECIBIDAS)</option>
                             </select>
                         </div>
                         
@@ -712,7 +712,7 @@
         }
 
         // ==========================================================
-        // IMPORTACIÓN DINÁMICA DE EXCEL
+        // IMPORTACIÓN DINÁMICA CON DETECCIÓN INTELIGENTE DE MONTOS
         // ==========================================================
         async function procesarArchivoExcelLocal(event) {
             const file = event.target.files[0];
@@ -743,16 +743,25 @@
                     let idxRuta = header.findIndex(h => h.includes('VENDEDOR') || h.includes('RUTA'));
                     let idxEmision = header.findIndex(h => h.includes('EMISIÓN') || h.includes('EMISION'));
                     let idxVenc = header.findIndex(h => h.includes('VENCIMIENTO'));
-                    let idxBs = header.findIndex(h => h.includes('MONTO EN BS') || h.includes('MONTO BS'));
-                    let idxUSD = header.findIndex(h => h.includes('MONTO EN $') || h.includes('MONTO $'));
+
+                    // Detección de columnas de montos (Prioriza PVP x UNIDAD y COSTO si contienen números)
+                    let idxBs = header.findIndex(h => h.includes('PVP X UNIDAD') || h.includes('PVP'));
+                    if (idxBs === -1 || !esColumnaNumerica(jsonRows, idxBs)) {
+                        idxBs = header.findIndex(h => h.includes('MONTO EN BS') || h.includes('MONTO BS'));
+                    }
+
+                    let idxUSD = header.findIndex(h => h.includes('COSTO'));
+                    if (idxUSD === -1 || !esColumnaNumerica(jsonRows, idxUSD)) {
+                        idxUSD = header.findIndex(h => h.includes('MONTO EN $') || h.includes('MONTO $'));
+                    }
 
                     if (idxDoc === -1) idxDoc = 9;
                     if (idxCliente === -1) idxCliente = 5;
                     if (idxRuta === -1) idxRuta = 3;
                     if (idxEmision === -1) idxEmision = 1;
                     if (idxVenc === -1) idxVenc = 2;
-                    if (idxBs === -1) idxBs = 16;
-                    if (idxUSD === -1) idxUSD = 17;
+                    if (idxBs === -1) idxBs = 20;
+                    if (idxUSD === -1) idxUSD = 21;
 
                     const mapaAgrupado = {};
 
@@ -816,6 +825,18 @@
             reader.readAsArrayBuffer(file);
         }
 
+        function esColumnaNumerica(rows, colIdx) {
+            if (colIdx === -1) return false;
+            for (let i = 1; i < Math.min(rows.length, 10); i++) {
+                const val = rows[i] ? rows[i][colIdx] : null;
+                if (val !== null && val !== undefined && val !== '') {
+                    if (typeof val === 'number') return true;
+                    if (typeof val === 'string' && /^-?\d+([.,]\d+)?$/.test(val.trim().replace(/\./g, '').replace(',', '.'))) return true;
+                }
+            }
+            return false;
+        }
+
         function headerVal(v) {
             return (v === null || v === undefined) ? '' : v;
         }
@@ -851,11 +872,43 @@
         }
 
         // ==========================================================
-        // EXPORTACIÓN DE REPORTE CON FECHA Y HORA EN RECIBIDO CB
+        // EXPORTACIÓN DINÁMICA DE REPORTE EN PDF (SEGÚN FILTROS ACTIVOS)
         // ==========================================================
         function exportarCierrePDF() {
             if (!cacheFilasDrive || cacheFilasDrive.length === 0) {
                 alert("No hay facturas cargadas en pantalla para exportar.");
+                return;
+            }
+
+            const textoBuscador = (document.getElementById('buscadorPedidos').value || '').toUpperCase().trim();
+            const estatusFiltro = document.getElementById('filtroEstatusPedidos').value;
+
+            // Filtrar las facturas activas según el buscador y el selector de estatus
+            const facturasParaExportar = cacheFilasDrive.filter(item => {
+                const nroDoc = (item.nro_doc || '').toUpperCase();
+                const cliente = (item.cliente || '').toUpperCase();
+                const ruta = (item.ruta || '').toUpperCase();
+
+                const coincideTexto = !textoBuscador || nroDoc.includes(textoBuscador) || cliente.includes(textoBuscador) || ruta.includes(textoBuscador);
+
+                const datosDB = mapaFacturasDB[item.nro_doc] || { estatus: 'PENDIENTE', recibido_cb: false, fecha_recibido: '' };
+                const status = datosDB.estatus;
+                const recibidoCB = datosDB.recibido_cb;
+
+                let coincideEstatus = true;
+                if (estatusFiltro === 'RECIBIDO_CB') {
+                    coincideEstatus = recibidoCB;
+                } else if (estatusFiltro === 'ENTREGADO_NO_RECIBIDO') {
+                    coincideEstatus = (status === 'ENTREGADO' && !recibidoCB);
+                } else if (estatusFiltro !== 'TODOS') {
+                    coincideEstatus = (status === estatusFiltro);
+                }
+
+                return coincideTexto && coincideEstatus;
+            });
+
+            if (facturasParaExportar.length === 0) {
+                alert("No hay registros que coincidan con el filtro seleccionado para exportar.");
                 return;
             }
 
@@ -871,19 +924,39 @@
             doc.setTextColor(30, 60, 120);
             doc.text("ALTROM ALIMENTOS, C.A.", 148, 16, { align: "center" });
 
+            // Subtítulo dinámico según el filtro seleccionado
+            let textoSubtitulo = "REPORTE CONSOLIDADO DE CIERRE MENSUAL DE FACTURACIÓN";
+            let nombreArchivoSufijo = "Cierre_General";
+            if (estatusFiltro === 'PENDIENTE') {
+                textoSubtitulo = "REPORTE DE FACTURAS PENDIENTES DE DESPACHO";
+                nombreArchivoSufijo = "Facturas_Pendientes";
+            } else if (estatusFiltro === 'ENTREGADO') {
+                textoSubtitulo = "REPORTE DE FACTURAS ENTREGADAS";
+                nombreArchivoSufijo = "Facturas_Entregadas";
+            } else if (estatusFiltro === 'ANULADA') {
+                textoSubtitulo = "REPORTE DE FACTURAS ANULADAS";
+                nombreArchivoSufijo = "Facturas_Anuladas";
+            } else if (estatusFiltro === 'RECIBIDO_CB') {
+                textoSubtitulo = "REPORTE DE FACTURAS RECIBIDAS (CUENTAS POR COBRAR)";
+                nombreArchivoSufijo = "Facturas_Recibidas_CB";
+            } else if (estatusFiltro === 'ENTREGADO_NO_RECIBIDO') {
+                textoSubtitulo = "REPORTE DE FACTURAS ENTREGADAS (NO RECIBIDAS POR CB)";
+                nombreArchivoSufijo = "Facturas_Entregadas_No_Recibidas";
+            }
+
             doc.setFontSize(11);
             doc.setTextColor(240, 84, 35);
-            doc.text("REPORTE CONSOLIDADO DE CIERRE MENSUAL DE FACTURACIÓN", 148, 22, { align: "center" });
+            doc.text(textoSubtitulo, 148, 22, { align: "center" });
 
             const fechaHoy = new Date().toLocaleDateString('es-VE') + ' ' + new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
             doc.setFontSize(8);
             doc.setTextColor(100, 100, 100);
-            doc.text(`Fecha de Emisión del Cierre: ${fechaHoy} | Emitido por: ${usuarioActual.email}`, 148, 27, { align: "center" });
+            doc.text(`Fecha de Emisión: ${fechaHoy} | Emitido por: ${usuarioActual.email} | Registros: ${facturasParaExportar.length}`, 148, 27, { align: "center" });
 
             let totalBs = 0;
             let totalUSD = 0;
 
-            const filasTabla = cacheFilasDrive.map(item => {
+            const filasTabla = facturasParaExportar.map(item => {
                 const nroDoc = item.nro_doc || 'N/A';
                 const cliente = item.cliente || 'N/A';
                 const ruta = item.ruta || 'N/A';
@@ -948,10 +1021,10 @@
             const strTotalBs = totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const strTotalUSD = totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-            doc.text(`TOTAL FACTURADO CIERRE:  Bs. ${strTotalBs}   |   USD $ ${strTotalUSD}`, 14, finalY);
+            doc.text(`TOTAL FACTURADO FILTRADO:  Bs. ${strTotalBs}   |   USD $ ${strTotalUSD}`, 14, finalY);
 
-            doc.save(`Cierre_Facturacion_Altrom_${new Date().toISOString().slice(0, 10)}.pdf`);
-            registrarAuditoria("EXPORTAR_CIERRE_PDF", `Exportó cierre en PDF con ${cacheFilasDrive.length} facturas`);
+            doc.save(`Altrom_${nombreArchivoSufijo}_${new Date().toISOString().slice(0, 10)}.pdf`);
+            registrarAuditoria("EXPORTAR_CIERRE_PDF", `Exportó PDF filtrado (${estatusFiltro}) con ${facturasParaExportar.length} facturas`);
         }
 
         async function eliminarLotesFacturas() {
@@ -1007,7 +1080,6 @@
                     renderEstatus = `<span class="px-3 py-1 ${colorStatus} rounded-full font-bold text-[9px]">${status}</span>`;
                 }
 
-                // RENDERING VISUAL CON FECHA Y HORA EN RECIBIDO CB
                 let renderRecibido = '';
                 if (usuarioActual.rol === 'Cuentas por cobrar') {
                     if (recibidoCB) {
@@ -1052,7 +1124,7 @@
         }
 
         // ==========================================================
-        // FILTRADO DINÁMICO COMBINADO (INCLUYE OPCIÓN NO_RECIBIDO)
+        // FILTRADO DINÁMICO COMBINADO (TEXTO + SELECT)
         // ==========================================================
         function filtrarPedidos() {
             const textoBuscador = document.getElementById('buscadorPedidos').value.toUpperCase();
@@ -1069,8 +1141,7 @@
 
                 if (estatusFiltro === 'RECIBIDO_CB') {
                     coincideEstatus = recibidoFila;
-                } else if (estatusFiltro === 'NO_RECIBIDO') {
-                    // Muestra únicamente las facturas ENTREGADAS que aún NO han sido recibidas
+                } else if (estatusFiltro === 'ENTREGADO_NO_RECIBIDO') {
                     coincideEstatus = (estatusFila === 'ENTREGADO' && !recibidoFila);
                 } else if (estatusFiltro !== 'TODOS') {
                     coincideEstatus = (estatusFila === estatusFiltro);
