@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Altrom Venezuela - Sistema Seguro</title>
+    <title>Altrom Venezuela - Sistema Seguro v1.0</title>
     <link rel="icon" type="image/png" href="logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -14,79 +14,103 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
     <style>
-        body { font-family: 'Montserrat', sans-serif; overflow-x: hidden; }
-        .font-reporte { font-family: 'Libre Baskerville', serif; font-weight: 700; letter-spacing: -1px; line-height: 1; }
+        body { font-family: 'Montserrat', sans-serif; overflow-x: hidden; background-color: #f8fafc; }
+        .font-reporte { font-family: 'Libre Baskerville', serif; font-weight: 700; letter-spacing: -0.5px; }
         .text-orange-altrom { color: #F05423; }
         .bg-orange-altrom { background-color: #F05423; }
-        #carrusel-container img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity 1.5s ease-in-out; opacity: 0; }
-        #carrusel-container img.active { opacity: 1; }
-        .glass { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+        .hover-bg-orange-altrom:hover { background-color: #d94416; }
+        .border-orange-altrom { border-color: #F05423; }
+        .glass { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(12px); }
         .hidden-content { display: none !important; }
-        .tab-active { border-bottom: 4px solid #F05423; color: #F05423; font-weight: bold; }
-        .sidebar { transition: transform 0.3s ease-in-out; }
+        .tab-active { border-bottom: 3px solid #F05423; color: #F05423; font-weight: 700; }
+        .sidebar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        /* MICROINTERACCIONES & FLUIDEZ v1.0 */
+        button, select, input, .action-chip {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        button:active {
+            transform: scale(0.97);
+        }
+        tr.data-row-pedido:hover {
+            background-color: #f1f5f9;
+            transform: scale(1.002);
+        }
+        .hero-banner {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800">
+<body class="text-slate-800 antialiased">
 
+    <!-- PANTALLA CLAVE MAESTRA -->
     <div id="pantallaClave" class="fixed inset-0 z-[100] flex items-center justify-center bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80');">
-        <div class="absolute inset-0 bg-black/60"></div>
-        <div class="glass p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md relative text-center border border-white/20">
-            <img src="logo.png" alt="Altrom Logo" class="h-20 w-auto mx-auto mb-6 object-contain">
-            <h1 class="font-reporte text-3xl text-red-700 mb-2 uppercase">SISTEMA ALTROM</h1>
-            <p class="text-[10px] tracking-widest text-gray-500 mb-8 uppercase font-bold italic">Logística y Despacho</p>
-            <input type="password" id="inputClaveMaestra" placeholder="Introduce la Clave de Acceso" class="w-full p-4 rounded-2xl bg-gray-100 border-none outline-none focus:ring-2 focus:ring-orange-500 mb-4 text-center font-bold">
-            <button onclick="verificarClave()" class="w-full py-4 bg-orange-altrom text-white font-bold rounded-2xl hover:bg-red-700 transition-all uppercase text-xs tracking-widest">Validar Acceso</button>
+        <div class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"></div>
+        <div class="glass p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md relative text-center border border-white/40">
+            <img src="logo.png" alt="Altrom Logo" class="h-20 w-auto mx-auto mb-5 object-contain drop-shadow-sm">
+            <div class="inline-flex items-center gap-2 px-3 py-1 bg-orange-100 text-orange-altrom rounded-full text-[10px] font-extrabold uppercase tracking-widest mb-3">
+                <span>Versión 1.0 Oficial</span>
+            </div>
+            <h1 class="font-reporte text-3xl text-red-700 mb-1 uppercase">SISTEMA ALTROM</h1>
+            <p class="text-[10px] tracking-widest text-slate-500 mb-8 uppercase font-bold italic">Logística y Despacho</p>
+            <input type="password" id="inputClaveMaestra" placeholder="Introduce la Clave de Acceso" class="w-full p-4 rounded-2xl bg-slate-100 border-none outline-none focus:ring-2 focus:ring-orange-500 mb-4 text-center font-bold text-slate-700">
+            <button onclick="verificarClave()" class="w-full py-4 bg-orange-altrom hover-bg-orange-altrom text-white font-bold rounded-2xl shadow-lg hover:shadow-orange-500/30 transition-all uppercase text-xs tracking-widest">Validar Acceso</button>
         </div>
     </div>
 
-    <div id="pantallaAuth" class="hidden-content fixed inset-0 z-[90] flex items-center justify-center bg-gray-100 px-4">
-        <div class="bg-white p-10 rounded-[2.5rem] shadow-xl w-full max-w-md text-center">
-            <img src="logo.png" alt="Altrom Logo" class="h-12 w-auto mx-auto mb-6 object-contain">
-            <h2 class="font-reporte text-2xl text-orange-altrom mb-4 uppercase italic">Identificación de Usuario</h2>
+    <!-- PANTALLA IDENTIFICACIÓN / AUTH -->
+    <div id="pantallaAuth" class="hidden-content fixed inset-0 z-[90] flex items-center justify-center bg-slate-100 px-4">
+        <div class="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md text-center border border-slate-200">
+            <img src="logo.png" alt="Altrom Logo" class="h-14 w-auto mx-auto mb-5 object-contain">
+            <h2 class="font-reporte text-2xl text-orange-altrom mb-1 uppercase italic">Identificación de Usuario</h2>
+            <p class="text-[10px] tracking-widest text-slate-400 mb-6 uppercase font-bold">Portal Logístico v1.0</p>
             
-            <input type="email" id="email" placeholder="Correo Electrónico" class="w-full p-4 rounded-2xl bg-gray-50 mb-3 outline-none border border-gray-100 text-sm">
-            <input type="password" id="password" placeholder="Contraseña" class="w-full p-4 rounded-2xl bg-gray-50 mb-3 outline-none border border-gray-100 text-sm">
+            <input type="email" id="email" placeholder="Correo Electrónico" class="w-full p-4 rounded-2xl bg-slate-50 mb-3 outline-none border border-slate-200 focus:border-orange-500 text-sm">
+            <input type="password" id="password" placeholder="Contraseña" class="w-full p-4 rounded-2xl bg-slate-50 mb-3 outline-none border border-slate-200 focus:border-orange-500 text-sm">
             
-            <select id="registerRol" class="w-full p-4 rounded-2xl bg-gray-50 mb-6 outline-none border border-gray-100 text-sm font-medium text-gray-500 uppercase">
+            <select id="registerRol" class="w-full p-4 rounded-2xl bg-slate-50 mb-6 outline-none border border-slate-200 text-sm font-semibold text-slate-500 uppercase">
                 <option value="" disabled selected>Selecciona tu Rol (Para Registro)</option>
                 <option value="Visualizador">Visualizador</option>
                 <option value="Cuentas por cobrar">Cuentas por cobrar</option>
                 <option value="Logistica">Logística</option>
             </select>
 
-            <div class="flex gap-2">
-                <button onclick="handleLogin()" class="flex-1 py-4 bg-gray-800 text-white font-bold rounded-xl text-[10px] uppercase tracking-widest">Entrar</button>
-                <button onclick="handleSignup()" class="flex-1 py-4 border border-gray-800 text-gray-800 font-bold rounded-xl text-[10px] uppercase tracking-widest">Registrarse</button>
+            <div class="flex gap-3">
+                <button onclick="handleLogin()" class="flex-1 py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl text-[10px] uppercase tracking-widest shadow-md">Entrar</button>
+                <button onclick="handleSignup()" class="flex-1 py-4 border-2 border-slate-900 text-slate-900 hover:bg-slate-100 font-bold rounded-2xl text-[10px] uppercase tracking-widest">Registrarse</button>
             </div>
             <p id="authMsg" class="mt-4 text-[9px] text-red-500 font-bold uppercase"></p>
         </div>
     </div>
 
-    <div id="pantallaEspera" class="hidden-content fixed inset-0 z-[95] flex items-center justify-center bg-gray-900 text-white p-6 text-center">
-        <div class="max-w-md bg-gray-800 p-8 rounded-3xl border border-gray-700 shadow-2xl">
-            <span class="text-6xl block mb-4">⏳</span>
-            <h2 class="font-reporte text-2xl text-orange-altrom uppercase mb-3">Acceso Restringido</h2>
-            <p class="text-sm text-gray-400 leading-relaxed mb-6">Tu cuenta ha sido creada exitosamente pero se encuentra **En espera de aprobación** por el Desarrollador. Se te notificará una vez seas verificado por la administración.</p>
-            <button onclick="location.reload()" class="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-xl text-xs font-bold uppercase tracking-widest">Regresar al Login</button>
+    <!-- PANTALLA ESPERA DE APROBACIÓN -->
+    <div id="pantallaEspera" class="hidden-content fixed inset-0 z-[95] flex items-center justify-center bg-slate-950 text-white p-6 text-center">
+        <div class="max-w-md bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-2xl">
+            <span class="text-6xl block mb-4 animate-pulse">⏳</span>
+            <h2 class="font-reporte text-2xl text-orange-altrom uppercase mb-3">Acceso en Verificación</h2>
+            <p class="text-sm text-slate-400 leading-relaxed mb-6">Tu cuenta ha sido creada y está pendiente de aprobación por el Desarrollador. Se te habilitará el acceso una vez seas validado institucionalmente.</p>
+            <button onclick="location.reload()" class="px-6 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-bold uppercase tracking-widest">Regresar al Login</button>
         </div>
     </div>
 
+    <!-- CONTENIDO PRINCIPAL DEL SISTEMA -->
     <div id="contenidoWeb" class="hidden-content">
         
         <!-- SIDEBAR DE ADMINISTRADOR Y AUDITORÍA -->
-        <div id="sidebarAdmin" class="sidebar fixed top-0 left-0 bottom-0 w-80 bg-gray-900 text-white z-50 transform -translate-x-full shadow-2xl flex flex-col border-r border-gray-800">
-            <div class="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-950">
+        <div id="sidebarAdmin" class="sidebar fixed top-0 left-0 bottom-0 w-84 bg-slate-900 text-white z-50 transform -translate-x-full shadow-2xl flex flex-col border-r border-slate-800">
+            <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-950">
                 <div>
                     <h3 class="font-reporte text-xl text-orange-altrom uppercase">Panel Master</h3>
-                    <p class="text-[9px] tracking-widest text-gray-500 font-bold uppercase">Gestión y Auditoría</p>
+                    <p class="text-[9px] tracking-widest text-slate-500 font-bold uppercase">Gestión y Auditoría v1.0</p>
                 </div>
-                <button onclick="toggleSidebar(false)" class="text-gray-400 text-2xl font-bold hover:text-white">&times;</button>
+                <button onclick="toggleSidebar(false)" class="text-slate-400 text-2xl font-bold hover:text-white p-2">&times;</button>
             </div>
             
-            <div class="flex border-b border-gray-800 bg-gray-950 text-center text-[9px] font-bold uppercase tracking-wider">
+            <div class="flex border-b border-slate-800 bg-slate-950 text-center text-[9px] font-bold uppercase tracking-wider">
                 <button onclick="switchSidebarTab('subTabSolicitudes')" id="btnSubTabSol" class="flex-1 py-3 text-orange-500 border-b-2 border-orange-500">Solicitudes</button>
-                <button onclick="switchSidebarTab('subTabActivos')" id="btnSubTabAct" class="flex-1 py-3 text-gray-500">Registrados</button>
-                <button onclick="switchSidebarTab('subTabAuditoria')" id="btnSubTabAud" class="flex-1 py-3 text-gray-500">Auditoría</button>
+                <button onclick="switchSidebarTab('subTabActivos')" id="btnSubTabAct" class="flex-1 py-3 text-slate-500">Registrados</button>
+                <button onclick="switchSidebarTab('subTabAuditoria')" id="btnSubTabAud" class="flex-1 py-3 text-slate-500">Auditoría</button>
             </div>
 
             <div class="flex-1 overflow-y-auto p-4 space-y-4">
@@ -96,60 +120,88 @@
             </div>
         </div>
 
-        <nav class="p-4 bg-white border-b flex justify-between items-center px-8 shadow-sm relative z-30">
+        <!-- BARRA SUPERIOR DE NAVEGACIÓN -->
+        <nav class="p-4 bg-white/95 backdrop-blur-md border-b border-slate-200 flex justify-between items-center px-8 shadow-sm sticky top-0 z-40">
             <div class="flex items-center gap-6">
-                <button onclick="toggleSidebar(true)" id="btnSidebarTrigger" class="hidden-content px-3 py-2 bg-gray-900 text-white text-[9px] font-bold uppercase tracking-widest rounded-lg hover:bg-orange-altrom transition-colors shadow-sm">
+                <button onclick="toggleSidebar(true)" id="btnSidebarTrigger" class="hidden-content px-3.5 py-2 bg-slate-900 text-white text-[9px] font-bold uppercase tracking-widest rounded-xl hover:bg-orange-altrom shadow-sm">
                     ☰ Usuarios
                 </button>
-                <img src="logo.png" alt="Altrom Logo" class="h-10 w-auto object-contain">
-                <button onclick="handleLogout()" class="text-[9px] font-bold text-gray-400 hover:text-red-600 uppercase transition-colors tracking-widest">Cerrar Sesión</button>
+                <div class="flex items-center gap-3">
+                    <img src="logo.png" alt="Altrom Logo" class="h-10 w-auto object-contain">
+                    <span class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[9px] font-extrabold uppercase tracking-wider border border-slate-200">v1.0</span>
+                </div>
+                <button onclick="handleLogout()" class="text-[9px] font-bold text-slate-400 hover:text-red-600 uppercase tracking-widest transition-colors">Cerrar Sesión</button>
             </div>
             <div class="text-right">
-                <p id="navUserName" class="font-bold text-orange-altrom text-sm uppercase">Cargando...</p>
-                <p id="navUserRol" class="text-[10px] text-gray-400 uppercase tracking-widest font-bold italic">Buscando permisos...</p>
+                <p id="navUserName" class="font-bold text-orange-altrom text-sm uppercase leading-tight">Cargando...</p>
+                <p id="navUserRol" class="text-[10px] text-slate-400 uppercase tracking-widest font-semibold italic">Buscando permisos...</p>
             </div>
         </nav>
 
-        <div class="bg-white border-b sticky top-0 z-20">
+        <!-- TABS DE NAVEGACIÓN PRINCIPAL -->
+        <div class="bg-white border-b border-slate-200 sticky top-[73px] z-30 shadow-sm">
             <div class="container mx-auto px-6 flex gap-8">
                 <button onclick="switchTab('tabReportes')" id="btnTabReportes" class="py-4 text-xs font-bold uppercase tracking-widest tab-active transition-all">Reporte de Novedades</button>
-                <button onclick="switchTab('tabPedidos')" id="btnTabPedidos" class="py-4 text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-orange-altrom transition-all">Control de Pedidos (Facturación)</button>
+                <button onclick="switchTab('tabPedidos')" id="btnTabPedidos" class="py-4 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-orange-altrom transition-all">Control de Pedidos (Facturación)</button>
             </div>
         </div>
 
-        <main class="container mx-auto px-6 py-12">
+        <main class="container mx-auto px-6 py-10">
             
+            <!-- SECCIÓN 1: REPORTE DE NOVEDADES -->
             <div id="seccionReportes">
-                <div class="flex flex-col md:flex-row items-center gap-12">
-                    <div class="w-full md:w-1/2">
-                        <h1 class="font-reporte text-6xl md:text-7xl text-red-700 mb-2 uppercase">ALTROM <br> VENEZUELA <br> REPORTES</h1>
-                        <h2 class="text-2xl tracking-[0.6em] font-light text-orange-altrom mb-10 uppercase italic">Logística</h2>
+                
+                <!-- HERO SECTION UPGRADE v1.0 (REEMPLAZO MODERNO DEL CARRUSEL) -->
+                <div class="hero-banner rounded-[2.5rem] p-8 md:p-12 text-white flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden mb-12">
+                    <div class="absolute -right-16 -bottom-16 w-96 h-96 bg-orange-altrom/10 rounded-full blur-3xl pointer-events-none"></div>
+                    <div class="absolute top-0 right-0 p-8 opacity-5 pointer-events-none hidden md:block">
+                        <img src="logo.png" alt="Altrom Watermark" class="w-80 h-auto filter grayscale">
+                    </div>
+
+                    <div class="w-full md:w-3/5 z-10">
+                        <div class="inline-flex items-center gap-2 px-3 py-1 bg-orange-altrom/20 text-orange-400 rounded-full text-[10px] font-extrabold uppercase tracking-widest mb-4 border border-orange-400/30">
+                            <span>Módulo de Novedades Logísticas</span>
+                        </div>
+                        <h1 class="font-reporte text-4xl md:text-5xl text-white mb-2 leading-tight">ALTROM VENEZUELA</h1>
+                        <p class="text-orange-400 text-lg font-light tracking-[0.3em] uppercase mb-6 italic">Control de Flota y Devoluciones</p>
+                        <p class="text-xs text-slate-300 max-w-xl mb-8 leading-relaxed">
+                            Generación digital de actas de recepción, novedades de ruta y notas de crédito con respaldo en tiempo real y descarga de actas foliadas listas para firma.
+                        </p>
+                        
                         <button id="btnAbrirFormReportes" onclick="document.getElementById('modalForm').classList.remove('hidden')" 
-                                class="px-8 py-4 bg-orange-altrom hover:bg-red-700 text-white font-bold rounded-lg transition-all shadow-xl uppercase text-sm tracking-widest">
-                            Abrir Formulario de Reportes
+                                class="px-8 py-4 bg-orange-altrom hover-bg-orange-altrom text-white font-bold rounded-2xl transition-all shadow-xl hover:shadow-orange-500/40 uppercase text-xs tracking-widest inline-flex items-center gap-3">
+                            <span>📝 Abrir Formulario de Reportes</span>
                         </button>
                     </div>
 
-                    <div class="w-full md:w-1/2 h-[450px] rounded-[2rem] overflow-hidden shadow-2xl relative border-4 border-white bg-gray-200">
-                        <div id="carrusel-container" class="relative w-full h-full">
-                            <img src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80" class="active">
-                            <img src="https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&q=80">
-                            <img src="https://images.unsplash.com/photo-1580674684081-7617fbf3d745?auto=format&fit=crop&q=80">
+                    <div class="w-full md:w-2/5 z-10 flex flex-col gap-3">
+                        <div class="bg-slate-800/80 backdrop-blur-md p-5 rounded-2xl border border-slate-700/60 shadow-lg">
+                            <span class="text-xs font-bold uppercase tracking-wider text-orange-400 block mb-1">Talonario Oficial</span>
+                            <p class="text-[11px] text-slate-300">Asigna correlativos de control físicos directamente en los formatos PDF emitidos.</p>
+                        </div>
+                        <div class="bg-slate-800/80 backdrop-blur-md p-5 rounded-2xl border border-slate-700/60 shadow-lg">
+                            <span class="text-xs font-bold uppercase tracking-wider text-green-400 block mb-1">Notas de Crédito (NC)</span>
+                            <p class="text-[11px] text-slate-300">Cambio de estatus y re-emisión formal con verificación de almacén en un clic.</p>
                         </div>
                     </div>
                 </div>
 
-                <div class="mt-20 border-t pt-10">
-                    <h3 class="font-reporte text-3xl text-red-700 mb-6 uppercase italic">Historial de Reportes</h3>
-                    
-                    <div class="mb-4 relative w-full md:w-96">
-                        <input type="text" id="buscadorReportes" onkeyup="filtrarReportes()" placeholder="Buscar por Factura, Cliente o Chofer..." class="w-full p-3 pl-10 rounded-xl bg-gray-50 border border-gray-100 text-sm outline-none focus:ring-2 focus:ring-orange-500 uppercase">
-                        <span class="absolute left-3 top-3.5 opacity-30">🔍</span>
+                <div class="border-t border-slate-200 pt-8">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                        <div>
+                            <h3 class="font-reporte text-2xl text-red-700 uppercase italic">Historial de Reportes</h3>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Actas Generadas y Estados de Ruta</p>
+                        </div>
+                        
+                        <div class="relative w-full sm:w-80">
+                            <input type="text" id="buscadorReportes" onkeyup="filtrarReportes()" placeholder="Buscar Factura, Cliente o Chofer..." class="w-full p-3.5 pl-10 rounded-2xl bg-white border border-slate-200 text-xs font-semibold outline-none focus:ring-2 focus:ring-orange-500 uppercase shadow-sm">
+                            <span class="absolute left-3.5 top-3.5 opacity-40 text-sm">🔍</span>
+                        </div>
                     </div>
 
-                    <div class="overflow-x-auto bg-white rounded-2xl shadow-sm border">
+                    <div class="overflow-x-auto bg-white rounded-3xl shadow-sm border border-slate-200">
                         <table class="w-full text-left text-xs">
-                            <thead class="bg-gray-50 text-orange-700 uppercase font-bold">
+                            <thead class="bg-slate-50 text-orange-altrom uppercase font-bold border-b border-slate-200">
                                 <tr>
                                     <th class="p-4">Estado</th>
                                     <th class="p-4">N° Control</th>
@@ -166,23 +218,27 @@
                 </div>
             </div>
 
+            <!-- SECCIÓN 2: CONTROL DE PEDIDOS Y FACTURACIÓN -->
             <div id="seccionPedidos" class="hidden-content">
-                <div class="mb-10">
-                    <h1 class="font-reporte text-5xl text-red-700 uppercase">Control de <br> Pedidos y Facturación</h1>
-                    <p class="text-orange-altrom font-bold uppercase text-[10px] tracking-[0.3em] mt-2 italic">Importación Directa de Archivos Excel / CSV (Facturas Unificadas)</p>
+                <div class="mb-8">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 bg-orange-100 text-orange-altrom rounded-full text-[10px] font-extrabold uppercase tracking-widest mb-2">
+                        <span>Gestión y Auditoría de Lotes</span>
+                    </div>
+                    <h1 class="font-reporte text-4xl text-red-700 uppercase">Control de Pedidos y Facturación</h1>
+                    <p class="text-orange-altrom font-bold uppercase text-[10px] tracking-[0.25em] mt-1 italic">Unificación inteligente de facturas, cuadre de montos y firma de recibido</p>
                 </div>
 
-                <div class="bg-white rounded-3xl shadow-sm border p-6">
-                    <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+                <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 p-6 md:p-8">
+                    <div class="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 mb-6">
                         
                         <!-- BUSCADOR + FILTRO DINÁMICO DE ESTATUS -->
-                        <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-                            <div class="relative w-full sm:w-80">
-                                <input type="text" id="buscadorPedidos" onkeyup="filtrarPedidos()" placeholder="Buscar Factura o Cliente..." class="w-full p-3 pl-10 rounded-xl bg-gray-50 border border-gray-100 text-sm outline-none focus:ring-2 focus:ring-orange-500 uppercase">
-                                <span class="absolute left-3 top-3.5 opacity-30">🔍</span>
+                        <div class="flex flex-col sm:flex-row items-center gap-3">
+                            <div class="relative w-full sm:w-72">
+                                <input type="text" id="buscadorPedidos" onkeyup="filtrarPedidos()" placeholder="Buscar Factura o Cliente..." class="w-full p-3.5 pl-10 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-semibold outline-none focus:ring-2 focus:ring-orange-500 uppercase">
+                                <span class="absolute left-3.5 top-3.5 opacity-40 text-sm">🔍</span>
                             </div>
                             
-                            <select id="filtroEstatusPedidos" onchange="filtrarPedidos()" class="w-full sm:w-auto p-3 rounded-xl bg-gray-50 border border-gray-200 text-xs font-bold text-gray-700 outline-none focus:ring-2 focus:ring-orange-500 uppercase">
+                            <select id="filtroEstatusPedidos" onchange="filtrarPedidos()" class="w-full sm:w-auto p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-orange-500 uppercase cursor-pointer">
                                 <option value="TODOS">Ver Todos los Estatus</option>
                                 <option value="PENDIENTE">Sólo PENDIENTE</option>
                                 <option value="ENTREGADO">Sólo ENTREGADO</option>
@@ -197,25 +253,25 @@
                             <input type="file" id="inputArchivoExcel" accept=".xlsx, .xls, .csv" class="hidden" onchange="procesarArchivoExcelLocal(event)">
                             
                             <!-- SOLO DESARROLLADOR Y LOGÍSTICA -->
-                            <button id="btnImportarExcel" onclick="document.getElementById('inputArchivoExcel').click()" class="hidden-content px-4 py-3 bg-orange-altrom hover:bg-red-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2">
-                                📥 Importar Excel / CSV
+                            <button id="btnImportarExcel" onclick="document.getElementById('inputArchivoExcel').click()" class="hidden-content px-4 py-3.5 bg-orange-altrom hover-bg-orange-altrom text-white font-bold text-xs uppercase tracking-widest rounded-2xl shadow-md flex items-center gap-2">
+                                <span>📥 Importar Excel / CSV</span>
                             </button>
                             
                             <!-- DESARROLLADOR, LOGÍSTICA Y CUENTAS POR COBRAR -->
-                            <button id="btnExportarPDF" onclick="exportarCierrePDF()" class="hidden-content px-4 py-3 bg-blue-700 hover:bg-blue-900 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2">
-                                📄 Exportar Cierre PDF
+                            <button id="btnExportarPDF" onclick="exportarCierrePDF()" class="hidden-content px-4 py-3.5 bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs uppercase tracking-widest rounded-2xl shadow-md flex items-center gap-2">
+                                <span>📄 Exportar PDF Filtrado</span>
                             </button>
 
                             <!-- SOLO DESARROLLADOR Y LOGÍSTICA -->
-                            <button id="btnLimpiarLotes" onclick="eliminarLotesFacturas()" class="hidden-content px-4 py-3 bg-gray-800 hover:bg-black text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md">
-                                🗑️ Limpiar Lotes
+                            <button id="btnLimpiarLotes" onclick="eliminarLotesFacturas()" class="hidden-content px-4 py-3.5 bg-slate-900 hover:bg-black text-white font-bold text-xs uppercase tracking-widest rounded-2xl shadow-md">
+                                <span>🗑️ Limpiar Lotes</span>
                             </button>
                         </div>
                     </div>
 
-                    <div class="overflow-x-auto">
+                    <div class="overflow-x-auto rounded-2xl border border-slate-200">
                         <table class="w-full text-left text-xs">
-                            <thead class="bg-gray-50 text-gray-500 uppercase font-bold">
+                            <thead class="bg-slate-50 text-slate-500 uppercase font-bold border-b border-slate-200">
                                 <tr>
                                     <th class="p-4">N° Documento</th>
                                     <th class="p-4">Cliente</th>
@@ -229,68 +285,72 @@
                                 </tr>
                             </thead>
                             <tbody id="tablaPedidos">
-                                <tr><td colspan="9" class="p-10 text-center text-gray-400 font-bold uppercase tracking-widest">Sin registros activos. Haz clic en "Importar Excel / CSV" para cargar facturas.</td></tr>
+                                <tr><td colspan="9" class="p-10 text-center text-slate-400 font-bold uppercase tracking-widest">Sin registros activos. Haz clic en "Importar Excel / CSV" para cargar facturas.</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
-            <div class="mt-20 grid grid-cols-1 md:grid-cols-3 gap-10 pt-10 border-t border-gray-100 mb-10">
-                <div>
-                    <h4 class="text-orange-altrom font-bold uppercase text-[10px] tracking-widest mb-4 italic">Personal de Flota Altrom</h4>
-                    <div class="grid grid-cols-2 gap-2 text-[11px] font-bold text-gray-700 uppercase">
-                        <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Aristides</div>
-                        <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Luismer</div>
-                        <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Alvaro</div>
-                        <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Ramon</div>
-                        <div class="bg-gray-50 p-2 rounded border-l-4 border-red-600">Enio</div>
+            <!-- FOOTER DE INFORMACIÓN LOGÍSTICA -->
+            <div class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 pt-10 border-t border-slate-200 mb-8">
+                <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                    <h4 class="text-orange-altrom font-bold uppercase text-[10px] tracking-widest mb-3 italic">Personal de Flota Altrom</h4>
+                    <div class="grid grid-cols-2 gap-2 text-[11px] font-bold text-slate-700 uppercase">
+                        <div class="bg-slate-50 p-2.5 rounded-xl border-l-4 border-red-600">Aristides</div>
+                        <div class="bg-slate-50 p-2.5 rounded-xl border-l-4 border-red-600">Luismer</div>
+                        <div class="bg-slate-50 p-2.5 rounded-xl border-l-4 border-red-600">Alvaro</div>
+                        <div class="bg-slate-50 p-2.5 rounded-xl border-l-4 border-red-600">Ramon</div>
+                        <div class="bg-slate-50 p-2.5 rounded-xl border-l-4 border-red-600">Enio</div>
                     </div>
                 </div>
-                <div class="bg-red-50 p-6 rounded-2xl border-b-4 border-red-200">
-                    <h4 class="text-red-700 font-bold text-xs uppercase mb-2">Control de Despacho</h4>
-                    <p class="text-xs text-gray-600 leading-relaxed italic">Validación digital de bultos y peso total para una logística sin errores.</p>
+                <div class="bg-red-50/60 p-6 rounded-3xl border border-red-100 shadow-sm">
+                    <h4 class="text-red-700 font-bold text-xs uppercase mb-2">Control y Auditoría v1.0</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed italic">Validación continua de bultos, cálculo unificado de pesos y trazabilidad de cobranzas.</p>
                 </div>
-                <div class="bg-orange-50 p-6 rounded-2xl border-b-4 border-orange-200">
-                    <h4 class="text-orange-700 font-bold text-xs uppercase mb-2">Reportes Instantáneos</h4>
-                    <p class="text-xs text-gray-600 leading-relaxed italic">Generación de formatos PDF profesionales listos para imprimir y firmar.</p>
+                <div class="bg-orange-50/60 p-6 rounded-3xl border border-orange-100 shadow-sm">
+                    <h4 class="text-orange-700 font-bold text-xs uppercase mb-2">Cierres y Exportación</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed italic">Generación instantánea de reportes consolidados por estatus listos para impresión y auditoría mensual.</p>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- MODAL FORMULARIO DE REPORTE CON CAMPO MANUAL DE CONTROL -->
-    <div id="modalForm" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8">
-            <div class="flex justify-between items-center border-b pb-4 mb-6 text-red-700">
-                <h3 class="text-2xl font-reporte uppercase italic">Nuevo Reporte</h3>
-                <button onclick="document.getElementById('modalForm').classList.add('hidden')" class="text-gray-400 text-3xl font-bold">&times;</button>
+    <!-- MODAL FORMULARIO DE REPORTE -->
+    <div id="modalForm" class="hidden fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 border border-slate-200">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-4 mb-6 text-red-700">
+                <div>
+                    <h3 class="text-2xl font-reporte uppercase italic">Nuevo Reporte de Novedad</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Talonario de Control Físico</p>
+                </div>
+                <button onclick="document.getElementById('modalForm').classList.add('hidden')" class="text-slate-400 text-3xl font-bold hover:text-slate-700 transition-colors">&times;</button>
             </div>
             <form id="formReporte" class="space-y-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input type="number" id="nro_control" placeholder="N° DE CONTROL (TALONARIO)" class="bg-orange-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm border border-orange-200 text-orange-900">
-                    <input type="text" id="cliente" placeholder="NOMBRE DE CLIENTE" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 uppercase text-sm border border-gray-100">
-                    <input type="date" id="fecha" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100">
-                    <input type="text" id="factura" placeholder="N° FACTURA O NOTA" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100">
-                    <input type="text" id="ruta" placeholder="RUTA" class="bg-gray-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-gray-100 uppercase md:col-span-2">
+                    <input type="number" id="nro_control" placeholder="N° DE CONTROL (TALONARIO)" class="bg-orange-50/80 p-3.5 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm border border-orange-200 text-orange-950">
+                    <input type="text" id="cliente" placeholder="NOMBRE DE CLIENTE" class="bg-slate-50 p-3.5 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 uppercase text-sm border border-slate-200">
+                    <input type="date" id="fecha" class="bg-slate-50 p-3.5 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-slate-200">
+                    <input type="text" id="factura" placeholder="N° FACTURA O NOTA" class="bg-slate-50 p-3.5 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-slate-200">
+                    <input type="text" id="ruta" placeholder="RUTA" class="bg-slate-50 p-3.5 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 text-sm border border-slate-200 uppercase md:col-span-2">
                 </div>
 
                 <div id="contenedorProductos" class="space-y-2">
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Mercancía</p>
-                    <div class="fila-producto grid grid-cols-4 gap-2 p-3 bg-orange-50 rounded-xl border border-orange-100">
-                        <input type="text" placeholder="TIPO" class="p-2 text-xs rounded border border-gray-200 uppercase">
-                        <input type="number" placeholder="BULTOS" class="p-2 text-xs rounded border border-gray-200">
-                        <input type="number" placeholder="UNID" class="p-2 text-xs rounded border border-gray-200">
-                        <input type="number" step="0.01" placeholder="KG" class="p-2 text-xs rounded border border-gray-200">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mercancía</p>
+                    <div class="fila-producto grid grid-cols-4 gap-2 p-3.5 bg-orange-50/50 rounded-2xl border border-orange-100">
+                        <input type="text" placeholder="TIPO" class="p-2 text-xs rounded-xl border border-slate-200 uppercase">
+                        <input type="number" placeholder="BULTOS" class="p-2 text-xs rounded-xl border border-slate-200">
+                        <input type="number" placeholder="UNID" class="p-2 text-xs rounded-xl border border-slate-200">
+                        <input type="number" step="0.01" placeholder="KG" class="p-2 text-xs rounded-xl border border-slate-200">
                     </div>
                 </div>
-                <button type="button" onclick="agregarFila()" class="text-orange-600 text-[10px] font-bold uppercase hover:underline">+ Añadir otro producto</button>
+                <button type="button" onclick="agregarFila()" class="text-orange-altrom text-[10px] font-bold uppercase hover:underline">+ Añadir otro producto</button>
 
-                <div class="grid grid-cols-1 gap-4 pt-4 border-t">
-                    <input type="text" id="chofer" placeholder="NOMBRE DE CHOFER" class="bg-gray-50 p-3 rounded-xl outline-none border border-gray-100 uppercase text-sm">
-                    <textarea id="novedad" placeholder="RAZÓN DE NOVEDAD" class="bg-gray-50 p-3 rounded-xl h-24 outline-none border border-gray-100 text-sm"></textarea>
+                <div class="grid grid-cols-1 gap-4 pt-4 border-t border-slate-200">
+                    <input type="text" id="chofer" placeholder="NOMBRE DE CHOFER" class="bg-slate-50 p-3.5 rounded-2xl outline-none border border-slate-200 uppercase text-sm">
+                    <textarea id="novedad" placeholder="RAZÓN DE NOVEDAD" class="bg-slate-50 p-3.5 rounded-2xl h-24 outline-none border border-slate-200 text-sm"></textarea>
                 </div>
-                <button type="button" onclick="guardarYGenerar()" id="btnGuardar" class="w-full py-4 bg-orange-altrom text-white font-bold rounded-xl hover:shadow-lg uppercase tracking-widest text-xs transition-all">Guardar Reporte y Descargar PDF</button>
+                <button type="button" onclick="guardarYGenerar()" id="btnGuardar" class="w-full py-4 bg-orange-altrom hover-bg-orange-altrom text-white font-bold rounded-2xl shadow-lg uppercase tracking-widest text-xs transition-all">Guardar Reporte y Descargar PDF</button>
             </form>
         </div>
     </div>
@@ -306,8 +366,6 @@
         const SUPABASE_URL = 'https://ahubtenryiezbymprtra.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_pd-qR6M790mUr3PQaY_jmQ_yEfW5dyD';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-        const URL_EXCEL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQsxuDV_DUkyPLWCVXcP9QpPt8c1yy9mzPuZ_mWmhXOP16uSAIbcyZmxph4YlcFAg/pub?output=csv";
 
         // ==========================================================
         // SISTEMA GLOBAL DE AUDITORÍA DE EVENTOS
@@ -329,7 +387,7 @@
 
         async function fetchLogsAuditoria() {
             const container = document.getElementById('subTabAuditoria');
-            container.innerHTML = '<p class="text-xs text-gray-500 italic text-center pt-4">Cargando registros de auditoría...</p>';
+            container.innerHTML = '<p class="text-xs text-slate-500 italic text-center pt-4">Cargando registros de auditoría...</p>';
             
             const { data, error } = await _supabase
                 .from('auditoria_altrom')
@@ -343,17 +401,17 @@
                     const fechaStr = fechaObj.toLocaleDateString('es-VE') + ' ' + fechaObj.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
                     
                     return `
-                        <div class="p-3 bg-gray-800 rounded-xl border border-gray-700 text-xs text-gray-300">
+                        <div class="p-3 bg-slate-800 rounded-xl border border-slate-700 text-xs text-slate-300">
                             <div class="flex justify-between items-center mb-1">
-                                <span class="font-bold text-orange-400">${log.usuario} <span class="text-[9px] text-gray-400">(${log.rol})</span></span>
-                                <span class="text-[8px] text-gray-500">${fechaStr}</span>
+                                <span class="font-bold text-orange-400">${log.usuario} <span class="text-[9px] text-slate-400">(${log.rol})</span></span>
+                                <span class="text-[8px] text-slate-500">${fechaStr}</span>
                             </div>
                             <p class="font-semibold text-white uppercase text-[10px]">${log.accion}</p>
-                            ${log.detalles ? `<p class="text-[9px] text-gray-400 italic mt-0.5">${log.detalles}</p>` : ''}
+                            ${log.detalles ? `<p class="text-[9px] text-slate-400 italic mt-0.5">${log.detalles}</p>` : ''}
                         </div>`;
                 }).join('');
             } else {
-                container.innerHTML = '<p class="text-xs text-gray-500 italic text-center pt-4">No hay logs de auditoría aún.</p>';
+                container.innerHTML = '<p class="text-xs text-slate-500 italic text-center pt-4">No hay logs de auditoría aún.</p>';
             }
         }
 
@@ -368,9 +426,9 @@
             document.getElementById('subTabActivos').classList.add('hidden-content');
             document.getElementById('subTabAuditoria').classList.add('hidden-content');
             
-            document.getElementById('btnSubTabSol').className = "flex-1 py-3 text-gray-500";
-            document.getElementById('btnSubTabAct').className = "flex-1 py-3 text-gray-500";
-            document.getElementById('btnSubTabAud').className = "flex-1 py-3 text-gray-500";
+            document.getElementById('btnSubTabSol').className = "flex-1 py-3 text-slate-500";
+            document.getElementById('btnSubTabAct').className = "flex-1 py-3 text-slate-500";
+            document.getElementById('btnSubTabAud').className = "flex-1 py-3 text-slate-500";
 
             document.getElementById(tabId).classList.remove('hidden-content');
             
@@ -488,8 +546,6 @@
                 const profileData = { id: data.user.id, email: email, rol: rol, aprobado: false };
                 await _supabase.from('perfiles_usuarios').insert([profileData]);
                 
-                console.log(`MAIL LOG: Solicitud enviada a ${CORREO_MASTER}. Link de Aprobación Directa: https://altrom-logistica.web.app/?approve_id=${data.user.id}`);
-                
                 document.getElementById('authMsg').className = "mt-4 text-[9px] text-green-600 font-bold uppercase";
                 document.getElementById('authMsg').innerText = "¡Registro enviado! Espera que el desarrollador te apruebe.";
             }
@@ -515,28 +571,28 @@
 
                     if(!u.aprobado) {
                         htmlSol += `
-                            <div class="p-3 bg-gray-800 rounded-xl border border-gray-700 text-xs">
+                            <div class="p-3 bg-slate-800 rounded-xl border border-slate-700 text-xs">
                                 <p class="font-bold text-orange-400 break-all">${u.email}</p>
-                                <p class="text-[9px] text-gray-400 uppercase mt-0.5">Rol solicitado: ${u.rol}</p>
+                                <p class="text-[9px] text-slate-400 uppercase mt-0.5">Rol solicitado: ${u.rol}</p>
                                 <div class="flex gap-2 mt-3">
-                                    <button onclick="procesarSolicitudUser('${u.id}', true, '${u.email}')" class="flex-1 py-1 bg-green-600 rounded text-[9px] font-bold uppercase">Aprobar</button>
-                                    <button onclick="procesarSolicitudUser('${u.id}', false, '${u.email}')" class="flex-1 py-1 bg-red-600 rounded text-[9px] font-bold uppercase">Denegar</button>
+                                    <button onclick="procesarSolicitudUser('${u.id}', true, '${u.email}')" class="flex-1 py-1.5 bg-green-600 hover:bg-green-700 rounded-lg text-[9px] font-bold uppercase">Aprobar</button>
+                                    <button onclick="procesarSolicitudUser('${u.id}', false, '${u.email}')" class="flex-1 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-[9px] font-bold uppercase">Denegar</button>
                                 </div>
                             </div>`;
                     } else {
                         htmlAct += `
-                            <div class="p-3 bg-gray-800 rounded-xl border border-gray-700 text-xs flex justify-between items-center">
+                            <div class="p-3 bg-slate-800 rounded-xl border border-slate-700 text-xs flex justify-between items-center">
                                 <div>
-                                    <p class="font-bold text-gray-300 break-all">${u.email.split('@')[0]}</p>
-                                    <p class="text-[9px] text-gray-500 uppercase">${u.rol}</p>
+                                    <p class="font-bold text-slate-300 break-all">${u.email.split('@')[0]}</p>
+                                    <p class="text-[9px] text-slate-500 uppercase font-semibold">${u.rol}</p>
                                 </div>
-                                <button onclick="eliminarCuentaUsuario('${u.id}', '${u.email}')" class="bg-red-900 text-red-200 px-2 py-1 rounded text-[9px] font-bold hover:bg-red-700">BORRAR</button>
+                                <button onclick="eliminarCuentaUsuario('${u.id}', '${u.email}')" class="bg-red-950 text-red-300 hover:bg-red-800 px-2.5 py-1.5 rounded-lg text-[9px] font-bold">BORRAR</button>
                             </div>`;
                     }
                 });
 
-                divSol.innerHTML = htmlSol || '<p class="text-xs text-gray-500 italic text-center pt-4">No hay solicitudes de acceso pendientes.</p>';
-                divAct.innerHTML = htmlAct || '<p class="text-xs text-gray-500 italic text-center pt-4">No hay usuarios registrados.</p>';
+                divSol.innerHTML = htmlSol || '<p class="text-xs text-slate-500 italic text-center pt-4">No hay solicitudes de acceso pendientes.</p>';
+                divAct.innerHTML = htmlAct || '<p class="text-xs text-slate-500 italic text-center pt-4">No hay usuarios registrados.</p>';
             }
         }
 
@@ -883,7 +939,6 @@
             const textoBuscador = (document.getElementById('buscadorPedidos').value || '').toUpperCase().trim();
             const estatusFiltro = document.getElementById('filtroEstatusPedidos').value;
 
-            // Filtrar las facturas activas según el buscador y el selector de estatus
             const facturasParaExportar = cacheFilasDrive.filter(item => {
                 const nroDoc = (item.nro_doc || '').toUpperCase();
                 const cliente = (item.cliente || '').toUpperCase();
@@ -924,7 +979,6 @@
             doc.setTextColor(30, 60, 120);
             doc.text("ALTROM ALIMENTOS, C.A.", 148, 16, { align: "center" });
 
-            // Subtítulo dinámico según el filtro seleccionado
             let textoSubtitulo = "REPORTE CONSOLIDADO DE CIERRE MENSUAL DE FACTURACIÓN";
             let nombreArchivoSufijo = "Cierre_General";
             if (estatusFiltro === 'PENDIENTE') {
@@ -1064,62 +1118,63 @@
                 const recibidoCB = datosDB.recibido_cb;
                 const fechaRecibidoCB = datosDB.fecha_recibido || '';
 
-                let colorStatus = 'bg-blue-50 text-blue-600';
-                if (status === 'ENTREGADO') colorStatus = 'bg-green-50 text-green-600';
-                if (status === 'ANULADA') colorStatus = 'bg-red-50 text-red-600';
+                let colorStatus = 'bg-blue-50 text-blue-600 border border-blue-200';
+                if (status === 'ENTREGADO') colorStatus = 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+                if (status === 'ANULADA') colorStatus = 'bg-rose-50 text-rose-700 border border-rose-200';
                 
                 let renderEstatus = '';
                 if (usuarioActual.rol === 'Logistica' || usuarioActual.rol === 'Desarrollador') {
                     renderEstatus = `
-                        <select onchange="modificarEstatusFacturaDB('${nroDocumento}', this.value)" class="text-[10px] font-bold p-1 rounded-md border bg-white focus:ring-1 focus:ring-orange-500 outline-none text-gray-700 uppercase">
+                        <select onchange="modificarEstatusFacturaDB('${nroDocumento}', this.value)" class="text-[10px] font-bold p-1.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-orange-500 outline-none text-slate-700 uppercase cursor-pointer shadow-sm">
                             <option value="PENDIENTE" ${status === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
                             <option value="ENTREGADO" ${status === 'ENTREGADO' ? 'selected' : ''}>ENTREGADO</option>
                             <option value="ANULADA" ${status === 'ANULADA' ? 'selected' : ''}>ANULADA</option>
                         </select>`;
                 } else {
-                    renderEstatus = `<span class="px-3 py-1 ${colorStatus} rounded-full font-bold text-[9px]">${status}</span>`;
+                    renderEstatus = `<span class="px-3 py-1 ${colorStatus} rounded-full font-bold text-[9px] inline-block shadow-sm">${status}</span>`;
                 }
 
+                // RENDERING VISUAL CON FECHA Y HORA EN RECIBIDO CB
                 let renderRecibido = '';
                 if (usuarioActual.rol === 'Cuentas por cobrar') {
                     if (recibidoCB) {
                         renderRecibido = `
                             <div class="inline-flex flex-col items-center">
-                                <span class="bg-green-600 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-md shadow-sm">✓ RECIBIDO</span>
-                                <span class="text-[9px] text-gray-500 font-semibold mt-1">${fechaRecibidoCB}</span>
+                                <span class="bg-emerald-600 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-md shadow-sm">✓ RECIBIDO</span>
+                                <span class="text-[9px] text-slate-500 font-semibold mt-1">${fechaRecibidoCB}</span>
                             </div>`;
                     } else {
-                        renderRecibido = `<input type="checkbox" onchange="modificarTildeRecibidoCB('${nroDocumento}', this.checked)" class="w-5 h-5 accent-green-600 cursor-pointer">`;
+                        renderRecibido = `<input type="checkbox" onchange="modificarTildeRecibidoCB('${nroDocumento}', this.checked)" class="w-5 h-5 accent-emerald-600 cursor-pointer rounded">`;
                     }
                 } else if (usuarioActual.rol === 'Desarrollador') {
                     renderRecibido = `
                         <div class="flex flex-col items-center">
-                            <input type="checkbox" ${recibidoCB ? 'checked' : ''} onchange="modificarTildeRecibidoCB('${nroDocumento}', this.checked)" class="w-5 h-5 accent-green-600 cursor-pointer">
-                            ${recibidoCB && fechaRecibidoCB ? `<span class="text-[8px] text-gray-500 font-semibold mt-1">${fechaRecibidoCB}</span>` : ''}
+                            <input type="checkbox" ${recibidoCB ? 'checked' : ''} onchange="modificarTildeRecibidoCB('${nroDocumento}', this.checked)" class="w-5 h-5 accent-emerald-600 cursor-pointer rounded">
+                            ${recibidoCB && fechaRecibidoCB ? `<span class="text-[8px] text-slate-500 font-semibold mt-1">${fechaRecibidoCB}</span>` : ''}
                         </div>`;
                 } else {
                     renderRecibido = recibidoCB 
-                        ? `<div class="inline-flex flex-col items-center"><span class="text-green-600 font-bold text-xs">✓ RECIBIDO</span><span class="text-[8px] text-gray-400 font-semibold">${fechaRecibidoCB}</span></div>` 
-                        : '<span class="text-gray-300 text-[10px]">PTE</span>';
+                        ? `<div class="inline-flex flex-col items-center"><span class="text-emerald-600 font-bold text-xs">✓ RECIBIDO</span><span class="text-[8px] text-slate-400 font-semibold">${fechaRecibidoCB}</span></div>` 
+                        : '<span class="text-slate-300 text-[10px] font-bold">PTE</span>';
                 }
 
                 html += `
-                    <tr class="border-t hover:bg-gray-50 transition-all data-row-pedido" 
+                    <tr class="border-t border-slate-100 hover:bg-slate-50/80 transition-all data-row-pedido" 
                         data-estatus="${status}" 
                         data-recibido="${recibidoCB}">
-                        <td class="p-4 font-bold text-gray-700">${nroDocumento}</td>
+                        <td class="p-4 font-bold text-slate-800">${nroDocumento}</td>
                         <td class="p-4 font-bold uppercase text-red-700 text-[10px]">${cliente}</td>
-                        <td class="p-4 text-gray-500 uppercase">${ruta}</td>
-                        <td class="p-4 text-gray-400">${fechaEmision}</td>
-                        <td class="p-4 text-gray-400">${fechaVenc}</td>
-                        <td class="p-4 text-right font-medium">${montoBs}</td>
-                        <td class="p-4 text-right font-bold text-green-700">${montoUSD}</td>
+                        <td class="p-4 text-slate-500 uppercase font-medium">${ruta}</td>
+                        <td class="p-4 text-slate-400 font-medium">${fechaEmision}</td>
+                        <td class="p-4 text-slate-400 font-medium">${fechaVenc}</td>
+                        <td class="p-4 text-right font-semibold text-slate-700">${montoBs}</td>
+                        <td class="p-4 text-right font-bold text-emerald-700">${montoUSD}</td>
                         <td class="p-4 text-center">${renderEstatus}</td>
-                        <td class="p-4 text-center bg-gray-50/50">${renderRecibido}</td>
+                        <td class="p-4 text-center bg-slate-50/50">${renderRecibido}</td>
                     </tr>`;
             });
             
-            tabla.innerHTML = html || '<tr><td colspan="9" class="p-10 text-center text-gray-400 font-bold uppercase tracking-widest">Sin registros activos. Haz clic en "Importar Excel / CSV" para cargar facturas.</td></tr>';
+            tabla.innerHTML = html || '<tr><td colspan="9" class="p-10 text-center text-slate-400 font-bold uppercase tracking-widest">Sin registros activos. Haz clic en "Importar Excel / CSV" para cargar facturas.</td></tr>';
             filtrarPedidos();
         }
 
@@ -1164,8 +1219,8 @@
         function switchTab(tabId) {
             document.getElementById('seccionReportes').classList.add('hidden-content');
             document.getElementById('seccionPedidos').classList.add('hidden-content');
-            document.getElementById('btnTabReportes').className = "py-4 text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-orange-altrom transition-all";
-            document.getElementById('btnTabPedidos').className = "py-4 text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-orange-altrom transition-all";
+            document.getElementById('btnTabReportes').className = "py-4 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-orange-altrom transition-all";
+            document.getElementById('btnTabPedidos').className = "py-4 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-orange-altrom transition-all";
 
             if (tabId === 'tabReportes') {
                 document.getElementById('seccionReportes').classList.remove('hidden-content');
@@ -1186,17 +1241,17 @@
                 tabla.innerHTML = data.map(r => {
                     const esListo = r.estado === 'LISTO';
                     const stringControl = r.nro_control ? String(r.nro_control).padStart(4, '0') : "----";
-                    return `<tr class="border-t hover:bg-orange-50 transition-colors">
-                        <td class="p-4 font-bold ${esListo ? 'text-green-600' : 'text-orange-500'}">${esListo ? '✓ LISTO' : 'PENDIENTE'}</td>
-                        <td class="p-4 font-mono font-bold text-gray-700">${stringControl}</td>
-                        <td class="p-4">${r.fecha}</td>
+                    return `<tr class="border-t border-slate-100 hover:bg-orange-50/50 transition-colors">
+                        <td class="p-4 font-bold ${esListo ? 'text-emerald-600' : 'text-orange-500'}">${esListo ? '✓ LISTO' : 'PENDIENTE'}</td>
+                        <td class="p-4 font-mono font-bold text-slate-700">${stringControl}</td>
+                        <td class="p-4 text-slate-500">${r.fecha}</td>
                         <td class="p-4 font-bold uppercase text-red-700">${r.cliente}</td>
-                        <td class="p-4 text-gray-500">${r.factura}</td>
-                        <td class="p-4 uppercase">${r.chofer}</td>
+                        <td class="p-4 text-slate-500 font-semibold">${r.factura}</td>
+                        <td class="p-4 uppercase text-slate-600 font-medium">${r.chofer}</td>
                         <td class="p-4 flex gap-2 justify-center items-center">
-                            <button onclick='reexportarPDF(${JSON.stringify(r)})' class="bg-gray-800 text-white px-2 py-1 rounded text-[9px] font-bold">PDF</button>
-                            ${(!esListo && (usuarioActual.rol === 'Logistica' || usuarioActual.rol === 'Desarrollador')) ? `<button onclick='generarNC(${JSON.stringify(r)})' class="bg-red-600 text-white px-2 py-1 rounded text-[9px] font-bold uppercase">NC</button>` : ''}
-                            ${usuarioActual.rol === 'Desarrollador' ? `<button onclick='removerReporteSupabase(${r.id}, "${r.factura}")' class="bg-black text-white px-2 py-1 rounded text-[9px] font-bold uppercase hover:bg-red-800 transition-colors">X</button>` : ''}
+                            <button onclick='reexportarPDF(${JSON.stringify(r)})' class="bg-slate-900 hover:bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-[9px] font-bold shadow-sm">PDF</button>
+                            ${(!esListo && (usuarioActual.rol === 'Logistica' || usuarioActual.rol === 'Desarrollador')) ? `<button onclick='generarNC(${JSON.stringify(r)})' class="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase shadow-sm">NC</button>` : ''}
+                            ${usuarioActual.rol === 'Desarrollador' ? `<button onclick='removerReporteSupabase(${r.id}, "${r.factura}")' class="bg-slate-950 text-white px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase hover:bg-red-800 transition-colors">X</button>` : ''}
                         </td>
                     </tr>`;
                 }).join('');
@@ -1225,8 +1280,8 @@
         function agregarFila() {
             const container = document.getElementById('contenedorProductos');
             const nuevaFila = document.createElement('div');
-            nuevaFila.className = 'fila-producto grid grid-cols-4 gap-2 p-3 bg-orange-50 rounded-xl border border-orange-100 mt-2';
-            nuevaFila.innerHTML = `<input type="text" placeholder="TIPO" class="p-2 text-xs rounded border border-gray-200 uppercase"><input type="number" placeholder="BULTOS" class="p-2 text-xs rounded border border-gray-200"><input type="number" placeholder="UNID" class="p-2 text-xs rounded border border-gray-200"><input type="number" step="0.01" placeholder="KG" class="p-2 text-xs rounded border border-gray-200">`;
+            nuevaFila.className = 'fila-producto grid grid-cols-4 gap-2 p-3.5 bg-orange-50/50 rounded-2xl border border-orange-100 mt-2';
+            nuevaFila.innerHTML = `<input type="text" placeholder="TIPO" class="p-2 text-xs rounded-xl border border-slate-200 uppercase"><input type="number" placeholder="BULTOS" class="p-2 text-xs rounded-xl border border-slate-200"><input type="number" placeholder="UNID" class="p-2 text-xs rounded-xl border border-slate-200"><input type="number" step="0.01" placeholder="KG" class="p-2 text-xs rounded-xl border border-slate-200">`;
             container.appendChild(nuevaFila);
         }
 
@@ -1457,25 +1512,6 @@
                 cargarReportes(); 
             }
         }
-
-        const imagenesArr = document.querySelectorAll('#carrusel-container img');
-        let idxImg = 0;
-        setInterval(() => {
-            if(imagenesArr.length > 0) {
-                imagenesArr[idxImg].classList.remove('active');
-                idxImg = (idxImg + 1) % imagenesArr.length;
-                imagenesArr[idxImg].classList.add('active');
-            }
-        }, 4500);
-
-        window.addEventListener('DOMContentLoaded', () => {
-            const params = new URLSearchParams(window.location.search);
-            const userApproveId = params.get('approve_id');
-            if(userApproveId) {
-                alert("ID detectado desde correo electrónico maestro. Por favor, valide su clave maestra para ingresar al Panel e impactar la base de datos.");
-            }
-        });
-
     </script>
 </body>
 </html>
