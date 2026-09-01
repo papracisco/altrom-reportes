@@ -10,7 +10,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- LIBRERÍA SHEETJS PARA PROCESAR ARCHIVOS EXCEL (.XLSX Y .CSV) LOCALES -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
     <style>
@@ -25,7 +24,6 @@
         .tab-active { border-bottom: 3px solid #F05423; color: #F05423; font-weight: 700; }
         .sidebar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         
-        /* MICROINTERACCIONES & FLUIDEZ v1.0 */
         button, select, input, .action-chip {
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -34,7 +32,6 @@
         }
         tr.data-row-pedido:hover {
             background-color: #f1f5f9;
-            transform: scale(1.002);
         }
         .hero-banner {
             background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
@@ -151,7 +148,6 @@
             <!-- SECCIÓN 1: REPORTE DE NOVEDADES -->
             <div id="seccionReportes">
                 
-                <!-- HERO SECTION UPGRADE v1.0 (REEMPLAZO MODERNO DEL CARRUSEL) -->
                 <div class="hero-banner rounded-[2.5rem] p-8 md:p-12 text-white flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden mb-12">
                     <div class="absolute -right-16 -bottom-16 w-96 h-96 bg-orange-altrom/10 rounded-full blur-3xl pointer-events-none"></div>
                     <div class="absolute top-0 right-0 p-8 opacity-5 pointer-events-none hidden md:block">
@@ -194,7 +190,7 @@
                         </div>
                         
                         <div class="relative w-full sm:w-80">
-                            <input type="text" id="buscadorReportes" onkeyup="filtrarReportes()" placeholder="Buscar Factura, Cliente o Chofer..." class="w-full p-3.5 pl-10 rounded-2xl bg-white border border-slate-200 text-xs font-semibold outline-none focus:ring-2 focus:ring-orange-500 uppercase shadow-sm">
+                            <input type="text" id="buscadorReportes" oninput="filtrarReportes()" placeholder="Buscar Factura, Cliente o Chofer..." class="w-full p-3.5 pl-10 rounded-2xl bg-white border border-slate-200 text-xs font-semibold outline-none focus:ring-2 focus:ring-orange-500 uppercase shadow-sm">
                             <span class="absolute left-3.5 top-3.5 opacity-40 text-sm">🔍</span>
                         </div>
                     </div>
@@ -234,7 +230,7 @@
                         <!-- BUSCADOR + FILTRO DINÁMICO DE ESTATUS -->
                         <div class="flex flex-col sm:flex-row items-center gap-3">
                             <div class="relative w-full sm:w-72">
-                                <input type="text" id="buscadorPedidos" onkeyup="filtrarPedidos()" placeholder="Buscar Factura o Cliente..." class="w-full p-3.5 pl-10 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-semibold outline-none focus:ring-2 focus:ring-orange-500 uppercase">
+                                <input type="text" id="buscadorPedidos" oninput="filtrarPedidos()" placeholder="Buscar Factura o Cliente..." class="w-full p-3.5 pl-10 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-semibold outline-none focus:ring-2 focus:ring-orange-500 uppercase">
                                 <span class="absolute left-3.5 top-3.5 opacity-40 text-sm">🔍</span>
                             </div>
                             
@@ -248,21 +244,18 @@
                             </select>
                         </div>
                         
-                        <!-- BOTONES DE IMPORTACIÓN, EXPORTACIÓN DE CIERRE Y LIMPIEZA -->
+                        <!-- BOTONES DE ACCIÓN -->
                         <div class="flex flex-wrap items-center gap-3">
                             <input type="file" id="inputArchivoExcel" accept=".xlsx, .xls, .csv" class="hidden" onchange="procesarArchivoExcelLocal(event)">
                             
-                            <!-- SOLO DESARROLLADOR Y LOGÍSTICA -->
                             <button id="btnImportarExcel" onclick="document.getElementById('inputArchivoExcel').click()" class="hidden-content px-4 py-3.5 bg-orange-altrom hover-bg-orange-altrom text-white font-bold text-xs uppercase tracking-widest rounded-2xl shadow-md flex items-center gap-2">
                                 <span>📥 Importar Excel / CSV</span>
                             </button>
                             
-                            <!-- DESARROLLADOR, LOGÍSTICA Y CUENTAS POR COBRAR -->
                             <button id="btnExportarPDF" onclick="exportarCierrePDF()" class="hidden-content px-4 py-3.5 bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs uppercase tracking-widest rounded-2xl shadow-md flex items-center gap-2">
                                 <span>📄 Exportar PDF Filtrado</span>
                             </button>
 
-                            <!-- SOLO DESARROLLADOR Y LOGÍSTICA -->
                             <button id="btnLimpiarLotes" onclick="eliminarLotesFacturas()" class="hidden-content px-4 py-3.5 bg-slate-900 hover:bg-black text-white font-bold text-xs uppercase tracking-widest rounded-2xl shadow-md">
                                 <span>🗑️ Limpiar Lotes</span>
                             </button>
@@ -368,7 +361,7 @@
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // ==========================================================
-        // SISTEMA GLOBAL DE AUDITORÍA DE EVENTOS
+        // SISTEMA GLOBAL DE AUDITORÍA
         // ==========================================================
         async function registrarAuditoria(accion, detalles = "") {
             if (!usuarioActual) return;
@@ -505,7 +498,6 @@
                 document.getElementById('btnAbrirFormReportes').classList.add('hidden-content');
             }
 
-            // GESTIÓN RIGUROSA DE BOTONES SEGÚN EL ROL DEL USUARIO
             if (usuarioActual.rol === 'Desarrollador' || usuarioActual.rol === 'Logistica') {
                 document.getElementById('btnImportarExcel').classList.remove('hidden-content');
                 document.getElementById('btnLimpiarLotes').classList.remove('hidden-content');
@@ -558,7 +550,7 @@
         }
 
         async function fetchGestionUsuarios() {
-            const { data: todos, error } = await _supabase.from('perfiles_usuarios').select('*');
+            const { data: todos } = await _supabase.from('perfiles_usuarios').select('*');
             if(todos) {
                 const divSol = document.getElementById('subTabSolicitudes');
                 const divAct = document.getElementById('subTabActivos');
@@ -618,7 +610,7 @@
         async function syncFacturasSupabase() {
             const localRecibidos = JSON.parse(localStorage.getItem('altrom_recibidos_local') || '{}');
             
-            const { data } = await _supabase.from('control_facturas').select('*');
+            const { data } = await _supabase.from('control_facturas').select('id_factura, estatus, recibido_cb, fecha_recibido');
             mapaFacturasDB = {};
             
             if (data) {
@@ -646,29 +638,38 @@
             });
         }
 
+        // ==========================================================
+        // ACTUALIZACIÓN SELECTIVA EN CALIENTE (ULTRA RÁPIDA)
+        // ==========================================================
         async function modificarEstatusFacturaDB(idFactura, valor) {
             if (!mapaFacturasDB[idFactura]) mapaFacturasDB[idFactura] = { estatus: 'PENDIENTE', recibido_cb: false, fecha_recibido: '' };
             mapaFacturasDB[idFactura].estatus = valor;
 
-            const { data } = await _supabase.from('control_facturas').select('id_factura').eq('id_factura', idFactura);
-            if (data && data.length > 0) {
-                await _supabase.from('control_facturas').update({ estatus: valor }).eq('id_factura', idFactura);
-            } else {
-                await _supabase.from('control_facturas').insert([{ id_factura: idFactura, estatus: valor, recibido_cb: false, fecha_recibido: '' }]);
+            // Actualización puntual del DOM sin recargar la tabla completa
+            const fila = document.getElementById(`fila-pedido-${idFactura}`);
+            if (fila) {
+                fila.setAttribute('data-estatus', valor);
             }
+
             registrarAuditoria("CAMBIO_ESTATUS_FACTURA", `Factura N° ${idFactura} cambió a ${valor}`);
-            procesarTablaPedidos(); 
+
+            try {
+                await _supabase.from('control_facturas').upsert({
+                    id_factura: idFactura,
+                    estatus: valor,
+                    recibido_cb: mapaFacturasDB[idFactura].recibido_cb || false,
+                    fecha_recibido: mapaFacturasDB[idFactura].fecha_recibido || ''
+                }, { onConflict: 'id_factura' });
+            } catch (err) {
+                console.warn("Error en sync de estatus:", err);
+            }
         }
 
-        // ==========================================================
-        // CHECKBOX CON CAPTURA Y RESPALDO DUAL (SUPABASE + LOCALSTORAGE)
-        // ==========================================================
         async function modificarTildeRecibidoCB(idFactura, tildado) {
             if (!mapaFacturasDB[idFactura]) mapaFacturasDB[idFactura] = { estatus: 'PENDIENTE', recibido_cb: false, fecha_recibido: '' };
             
             if (usuarioActual.rol === 'Cuentas por cobrar' && !tildado && mapaFacturasDB[idFactura].recibido_cb) {
                 alert("Atención: Como usuario de Cuentas por Cobrar no tienes permisos para desmarcar una factura ya recibida.");
-                procesarTablaPedidos();
                 return;
             }
 
@@ -685,28 +686,44 @@
             localRecibidos[idFactura] = { recibido: tildado, fecha: fechaHoraStr };
             localStorage.setItem('altrom_recibidos_local', JSON.stringify(localRecibidos));
 
-            procesarTablaPedidos();
+            // Actualización puntual de la celda en el DOM al instante
+            const fila = document.getElementById(`fila-pedido-${idFactura}`);
+            if (fila) {
+                fila.setAttribute('data-recibido', String(tildado));
+                const celda = fila.querySelector('.celda-recibido-cb');
+                if (celda) {
+                    if (usuarioActual.rol === 'Cuentas por cobrar') {
+                        celda.innerHTML = tildado ? `
+                            <div class="inline-flex flex-col items-center">
+                                <span class="bg-emerald-600 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-md shadow-sm">✓ RECIBIDO</span>
+                                <span class="text-[9px] text-slate-500 font-semibold mt-1">${fechaHoraStr}</span>
+                            </div>` : `<input type="checkbox" onchange="modificarTildeRecibidoCB('${idFactura}', this.checked)" class="w-5 h-5 accent-emerald-600 cursor-pointer rounded">`;
+                    } else if (usuarioActual.rol === 'Desarrollador') {
+                        celda.innerHTML = `
+                            <div class="flex flex-col items-center">
+                                <input type="checkbox" ${tildado ? 'checked' : ''} onchange="modificarTildeRecibidoCB('${idFactura}', this.checked)" class="w-5 h-5 accent-emerald-600 cursor-pointer rounded">
+                                ${tildado && fechaHoraStr ? `<span class="text-[8px] text-slate-500 font-semibold mt-1">${fechaHoraStr}</span>` : ''}
+                            </div>`;
+                    } else {
+                        celda.innerHTML = tildado 
+                            ? `<div class="inline-flex flex-col items-center"><span class="text-emerald-600 font-bold text-xs">✓ RECIBIDO</span><span class="text-[8px] text-slate-400 font-semibold">${fechaHoraStr}</span></div>` 
+                            : '<span class="text-slate-300 text-[10px] font-bold">PTE</span>';
+                    }
+                }
+            }
 
             const estadoTexto = tildado ? `MARCADO COMO RECIBIDO (${fechaHoraStr})` : "DESMARCADO DE RECIBIDO";
             registrarAuditoria("CAMBIO_RECIBIDO_CB", `Factura N° ${idFactura} -> ${estadoTexto}`);
 
             try {
-                const { data } = await _supabase.from('control_facturas').select('id_factura').eq('id_factura', idFactura);
-                if (data && data.length > 0) {
-                    await _supabase.from('control_facturas').update({ 
-                        recibido_cb: tildado, 
-                        fecha_recibido: fechaHoraStr 
-                    }).eq('id_factura', idFactura);
-                } else {
-                    await _supabase.from('control_facturas').insert([{ 
-                        id_factura: idFactura, 
-                        estatus: 'PENDIENTE', 
-                        recibido_cb: tildado, 
-                        fecha_recibido: fechaHoraStr 
-                    }]);
-                }
+                await _supabase.from('control_facturas').upsert({ 
+                    id_factura: idFactura, 
+                    estatus: mapaFacturasDB[idFactura].estatus || 'PENDIENTE', 
+                    recibido_cb: tildado, 
+                    fecha_recibido: fechaHoraStr 
+                }, { onConflict: 'id_factura' });
             } catch (err) {
-                console.warn("Sincronización en la nube en segundo plano (datos seguros en local):", err);
+                console.warn("Sincronización en segundo plano:", err);
             }
         }
 
@@ -716,7 +733,6 @@
             if (typeof val === 'number') return isNaN(val) ? 0 : val;
             
             let str = String(val).trim();
-            
             if (str.includes(',') && str.includes('.')) {
                 if (str.indexOf(',') < str.indexOf('.')) {
                     str = str.replace(/,/g, '');
@@ -731,7 +747,7 @@
             return isNaN(num) ? 0 : num;
         }
 
-        // CONVERTIDOR RIGUROSO DE FECHAS
+        // CONVERTIDOR DE FECHAS
         function convertirFechaExcelATexto(val) {
             if (!val) return '';
             
@@ -743,7 +759,6 @@
             }
 
             const strVal = String(val).trim();
-            
             if (strVal.includes('-')) {
                 const partes = strVal.split('T')[0].split('-');
                 if(partes.length === 3 && partes[0].length === 4) {
@@ -768,7 +783,7 @@
         }
 
         // ==========================================================
-        // IMPORTACIÓN DINÁMICA CON DETECCIÓN INTELIGENTE DE MONTOS
+        // IMPORTACIÓN DINÁMICA
         // ==========================================================
         async function procesarArchivoExcelLocal(event) {
             const file = event.target.files[0];
@@ -791,16 +806,13 @@
                     const header = jsonRows[0].map(h => String(headerVal(h)).toUpperCase().trim());
                     
                     let idxDoc = header.findIndex(h => h.includes('NÚMERO DE DOCUMENTO') || h.includes('NUMERO DE DOCUMENTO'));
-                    if (idxDoc === -1) {
-                        idxDoc = header.findIndex(h => h === 'DOCUMENTO');
-                    }
+                    if (idxDoc === -1) idxDoc = header.findIndex(h => h === 'DOCUMENTO');
                     
                     let idxCliente = header.findIndex(h => h.includes('NOMBRE DE CLIENTE') || h.includes('CLIENTE') || h.includes('PROVEEDOR'));
                     let idxRuta = header.findIndex(h => h.includes('VENDEDOR') || h.includes('RUTA'));
                     let idxEmision = header.findIndex(h => h.includes('EMISIÓN') || h.includes('EMISION'));
                     let idxVenc = header.findIndex(h => h.includes('VENCIMIENTO'));
 
-                    // Detección de columnas de montos (Prioriza PVP x UNIDAD y COSTO si contienen números)
                     let idxBs = header.findIndex(h => h.includes('PVP X UNIDAD') || h.includes('PVP'));
                     if (idxBs === -1 || !esColumnaNumerica(jsonRows, idxBs)) {
                         idxBs = header.findIndex(h => h.includes('MONTO EN BS') || h.includes('MONTO BS'));
@@ -863,19 +875,17 @@
 
                     if (filasNuevas.length > 0) {
                         const { error } = await _supabase.from('lotes_facturas_altrom').insert(filasNuevas);
-                        if (error) {
-                            console.warn("Tabla de lotes no detectada o error de inserción:", error.message);
-                        }
+                        if (error) console.warn("Aviso de inserción:", error.message);
                         
                         await cargarLotesFacturasGuardados();
                         registrarAuditoria("IMPORTACION_EXCEL", `Cargó ${filasNuevas.length} facturas desde archivo ${file.name}`);
-                        alert(`¡Éxito! Se procesaron y unificaron ${filasNuevas.length} facturas únicas desde el archivo ${file.name}.`);
+                        alert(`¡Éxito! Se procesaron y unificaron ${filasNuevas.length} facturas únicas.`);
                     } else {
-                        alert("No se identificaron filas válidas con la estructura del reporte.");
+                        alert("No se identificaron filas válidas.");
                     }
                 } catch (err) {
-                    console.error("Error al procesar el archivo Excel:", err);
-                    alert("Error al leer el archivo. Asegúrate de importar un formato .XLSX o .CSV válido.");
+                    console.error("Error al procesar:", err);
+                    alert("Error al leer el archivo. Asegúrate de importar un archivo válido.");
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -922,13 +932,12 @@
                 }
                 procesarTablaPedidos();
             } catch (err) {
-                console.log("Servicio de lotes listo para primera carga.");
                 procesarTablaPedidos();
             }
         }
 
         // ==========================================================
-        // EXPORTACIÓN DINÁMICA DE REPORTE EN PDF (SEGÚN FILTROS ACTIVOS)
+        // EXPORTACIÓN DINÁMICA DE REPORTE EN PDF
         // ==========================================================
         function exportarCierrePDF() {
             if (!cacheFilasDrive || cacheFilasDrive.length === 0) {
@@ -969,7 +978,6 @@
 
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('l', 'mm', 'a4'); 
-
             const COLOR_LINEA_AZUL = [30, 70, 140];
 
             doc.addImage('logo.png', 'PNG', 14, 10, 22, 22);
@@ -1068,7 +1076,6 @@
             });
 
             let finalY = doc.lastAutoTable.finalY + 8;
-
             doc.setFont("helvetica", "bold");
             doc.setFontSize(9);
             doc.setTextColor(30, 60, 120);
@@ -1100,6 +1107,9 @@
             }
         }
 
+        // ==========================================================
+        // RENDERIZADO OPTIMIZADO DE TABLA
+        // ==========================================================
         function procesarTablaPedidos() {
             const tabla = document.getElementById('tablaPedidos');
             let html = '';
@@ -1118,10 +1128,6 @@
                 const recibidoCB = datosDB.recibido_cb;
                 const fechaRecibidoCB = datosDB.fecha_recibido || '';
 
-                let colorStatus = 'bg-blue-50 text-blue-600 border border-blue-200';
-                if (status === 'ENTREGADO') colorStatus = 'bg-emerald-50 text-emerald-700 border border-emerald-200';
-                if (status === 'ANULADA') colorStatus = 'bg-rose-50 text-rose-700 border border-rose-200';
-                
                 let renderEstatus = '';
                 if (usuarioActual.rol === 'Logistica' || usuarioActual.rol === 'Desarrollador') {
                     renderEstatus = `
@@ -1131,10 +1137,12 @@
                             <option value="ANULADA" ${status === 'ANULADA' ? 'selected' : ''}>ANULADA</option>
                         </select>`;
                 } else {
+                    let colorStatus = 'bg-blue-50 text-blue-600 border border-blue-200';
+                    if (status === 'ENTREGADO') colorStatus = 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+                    if (status === 'ANULADA') colorStatus = 'bg-rose-50 text-rose-700 border border-rose-200';
                     renderEstatus = `<span class="px-3 py-1 ${colorStatus} rounded-full font-bold text-[9px] inline-block shadow-sm">${status}</span>`;
                 }
 
-                // RENDERING VISUAL CON FECHA Y HORA EN RECIBIDO CB
                 let renderRecibido = '';
                 if (usuarioActual.rol === 'Cuentas por cobrar') {
                     if (recibidoCB) {
@@ -1158,10 +1166,14 @@
                         : '<span class="text-slate-300 text-[10px] font-bold">PTE</span>';
                 }
 
+                const searchable = `${nroDocumento} ${cliente} ${ruta}`.toUpperCase();
+
                 html += `
-                    <tr class="border-t border-slate-100 hover:bg-slate-50/80 transition-all data-row-pedido" 
+                    <tr id="fila-pedido-${nroDocumento}" 
+                        class="border-t border-slate-100 hover:bg-slate-50/80 transition-colors data-row-pedido" 
                         data-estatus="${status}" 
-                        data-recibido="${recibidoCB}">
+                        data-recibido="${recibidoCB}"
+                        data-search="${searchable}">
                         <td class="p-4 font-bold text-slate-800">${nroDocumento}</td>
                         <td class="p-4 font-bold uppercase text-red-700 text-[10px]">${cliente}</td>
                         <td class="p-4 text-slate-500 uppercase font-medium">${ruta}</td>
@@ -1169,8 +1181,8 @@
                         <td class="p-4 text-slate-400 font-medium">${fechaVenc}</td>
                         <td class="p-4 text-right font-semibold text-slate-700">${montoBs}</td>
                         <td class="p-4 text-right font-bold text-emerald-700">${montoUSD}</td>
-                        <td class="p-4 text-center">${renderEstatus}</td>
-                        <td class="p-4 text-center bg-slate-50/50">${renderRecibido}</td>
+                        <td class="p-4 text-center celda-estatus-cb">${renderEstatus}</td>
+                        <td class="p-4 text-center bg-slate-50/50 celda-recibido-cb">${renderRecibido}</td>
                     </tr>`;
             });
             
@@ -1179,19 +1191,20 @@
         }
 
         // ==========================================================
-        // FILTRADO DINÁMICO COMBINADO (TEXTO + SELECT)
+        // FILTRADO ULTRARRÁPIDO POR ATRIBUTOS
         // ==========================================================
         function filtrarPedidos() {
-            const textoBuscador = document.getElementById('buscadorPedidos').value.toUpperCase();
+            const textoBuscador = document.getElementById('buscadorPedidos').value.toUpperCase().trim();
             const estatusFiltro = document.getElementById('filtroEstatusPedidos').value;
             const filas = document.querySelectorAll('#tablaPedidos tr.data-row-pedido');
 
-            filas.forEach(f => {
-                const textoFila = f.innerText.toUpperCase();
+            for (let i = 0; i < filas.length; i++) {
+                const f = filas[i];
+                const searchData = f.getAttribute('data-search') || '';
                 const estatusFila = f.getAttribute('data-estatus');
                 const recibidoFila = f.getAttribute('data-recibido') === 'true';
 
-                const coincideTexto = textoFila.includes(textoBuscador);
+                const coincideTexto = !textoBuscador || searchData.includes(textoBuscador);
                 let coincideEstatus = true;
 
                 if (estatusFiltro === 'RECIBIDO_CB') {
@@ -1202,18 +1215,16 @@
                     coincideEstatus = (estatusFila === estatusFiltro);
                 }
 
-                if (coincideTexto && coincideEstatus) {
-                    f.style.display = '';
-                } else {
-                    f.style.display = 'none';
-                }
-            });
+                f.style.display = (coincideTexto && coincideEstatus) ? '' : 'none';
+            }
         }
 
         function filtrarReportes() {
-            const input = document.getElementById('buscadorReportes').value.toUpperCase();
+            const input = document.getElementById('buscadorReportes').value.toUpperCase().trim();
             const filas = document.querySelectorAll('#tablaReportes tr');
-            filas.forEach(f => { f.style.display = f.innerText.toUpperCase().includes(input) ? '' : 'none'; });
+            for (let i = 0; i < filas.length; i++) {
+                filas[i].style.display = !input || filas[i].innerText.toUpperCase().includes(input) ? '' : 'none';
+            }
         }
 
         function switchTab(tabId) {
@@ -1259,19 +1270,13 @@
         }
 
         async function removerReporteSupabase(id, nroFactura) {
-            if (confirm("¿Estás seguro de que deseas eliminar permanentemente este reporte de la base de datos de Altrom?")) {
+            if (confirm("¿Estás seguro de que deseas eliminar permanentemente este reporte?")) {
                 try {
-                    const { error } = await _supabase
-                        .from('reportes_altrom')
-                        .delete()
-                        .eq('id', id);
-
+                    const { error } = await _supabase.from('reportes_altrom').delete().eq('id', id);
                     if (error) throw error;
-
                     registrarAuditoria("ELIMINAR_REPORTE", `Eliminó el reporte con factura N° ${nroFactura}`);
                     cargarReportes();
                 } catch (err) {
-                    console.error("Error crítico al eliminar reporte:", err.message);
                     alert("No se pudo eliminar el reporte: " + err.message);
                 }
             }
@@ -1470,7 +1475,6 @@
             });
 
             let finalY = doc.lastAutoTable.finalY + 8;
-
             doc.setFont("helvetica", "bold");
             doc.setFontSize(8);
             doc.text("OBSERVACIONES:", 16, finalY);
