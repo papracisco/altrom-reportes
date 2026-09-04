@@ -10,7 +10,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- LIBRERÍA SHEETJS CON ESTILOS PARA EXCEL PERSONALIZADO (.XLSX CON COLORES) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     
     <style>
         body { font-family: 'Montserrat', sans-serif; overflow-x: hidden; background-color: #f8fafc; }
@@ -244,7 +245,7 @@
                             </select>
                         </div>
                         
-                        <!-- BOTONES DE ACCIÓN -->
+                        <!-- BOTONES DE ACCIÓN: IMPORTACIÓN, EXCEL ESTILIZADO, PDF Y LIMPIEZA -->
                         <div class="flex flex-wrap items-center gap-3">
                             <input type="file" id="inputArchivoExcel" accept=".xlsx, .xls, .csv" class="hidden" onchange="procesarArchivoExcelLocal(event)">
                             
@@ -252,6 +253,12 @@
                                 <span>📥 Importar Excel / CSV</span>
                             </button>
                             
+                            <!-- EXPORTAR EXCEL ESTILIZADO PERSONALIZADO -->
+                            <button id="btnExportarExcel" onclick="exportarCierreExcel()" class="hidden-content px-4 py-3.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs uppercase tracking-widest rounded-2xl shadow-md flex items-center gap-2">
+                                <span>📊 Exportar Excel</span>
+                            </button>
+
+                            <!-- EXPORTAR PDF FILTRADO -->
                             <button id="btnExportarPDF" onclick="exportarCierrePDF()" class="hidden-content px-4 py-3.5 bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs uppercase tracking-widest rounded-2xl shadow-md flex items-center gap-2">
                                 <span>📄 Exportar PDF Filtrado</span>
                             </button>
@@ -502,14 +509,17 @@
                 document.getElementById('btnImportarExcel').classList.remove('hidden-content');
                 document.getElementById('btnLimpiarLotes').classList.remove('hidden-content');
                 document.getElementById('btnExportarPDF').classList.remove('hidden-content');
+                document.getElementById('btnExportarExcel').classList.remove('hidden-content');
             } else if (usuarioActual.rol === 'Cuentas por cobrar') {
                 document.getElementById('btnImportarExcel').classList.add('hidden-content');
                 document.getElementById('btnLimpiarLotes').classList.add('hidden-content');
                 document.getElementById('btnExportarPDF').classList.remove('hidden-content');
+                document.getElementById('btnExportarExcel').classList.remove('hidden-content');
             } else {
                 document.getElementById('btnImportarExcel').classList.add('hidden-content');
                 document.getElementById('btnLimpiarLotes').classList.add('hidden-content');
                 document.getElementById('btnExportarPDF').classList.add('hidden-content');
+                document.getElementById('btnExportarExcel').classList.add('hidden-content');
             }
 
             cargarReportes();
@@ -639,13 +649,12 @@
         }
 
         // ==========================================================
-        // ACTUALIZACIÓN SELECTIVA EN CALIENTE (ULTRA RÁPIDA)
+        // ACTUALIZACIÓN SELECTIVA EN CALIENTE
         // ==========================================================
         async function modificarEstatusFacturaDB(idFactura, valor) {
             if (!mapaFacturasDB[idFactura]) mapaFacturasDB[idFactura] = { estatus: 'PENDIENTE', recibido_cb: false, fecha_recibido: '' };
             mapaFacturasDB[idFactura].estatus = valor;
 
-            // Actualización puntual del DOM sin recargar la tabla completa
             const fila = document.getElementById(`fila-pedido-${idFactura}`);
             if (fila) {
                 fila.setAttribute('data-estatus', valor);
@@ -686,7 +695,6 @@
             localRecibidos[idFactura] = { recibido: tildado, fecha: fechaHoraStr };
             localStorage.setItem('altrom_recibidos_local', JSON.stringify(localRecibidos));
 
-            // Actualización puntual de la celda en el DOM al instante
             const fila = document.getElementById(`fila-pedido-${idFactura}`);
             if (fila) {
                 fila.setAttribute('data-recibido', String(tildado));
@@ -727,7 +735,6 @@
             }
         }
 
-        // PARSER UNIVERSAL DE MONTOS
         function limpiarMonto(val) {
             if (val === null || val === undefined || val === '') return 0;
             if (typeof val === 'number') return isNaN(val) ? 0 : val;
@@ -747,7 +754,6 @@
             return isNaN(num) ? 0 : num;
         }
 
-        // CONVERTIDOR DE FECHAS
         function convertirFechaExcelATexto(val) {
             if (!val) return '';
             
@@ -782,9 +788,6 @@
             return strVal;
         }
 
-        // ==========================================================
-        // IMPORTACIÓN DINÁMICA
-        // ==========================================================
         async function procesarArchivoExcelLocal(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -936,19 +939,11 @@
             }
         }
 
-        // ==========================================================
-        // EXPORTACIÓN DINÁMICA DE REPORTE EN PDF
-        // ==========================================================
-        function exportarCierrePDF() {
-            if (!cacheFilasDrive || cacheFilasDrive.length === 0) {
-                alert("No hay facturas cargadas en pantalla para exportar.");
-                return;
-            }
-
+        function obtenerFacturasFiltradasActivas() {
             const textoBuscador = (document.getElementById('buscadorPedidos').value || '').toUpperCase().trim();
             const estatusFiltro = document.getElementById('filtroEstatusPedidos').value;
 
-            const facturasParaExportar = cacheFilasDrive.filter(item => {
+            return cacheFilasDrive.filter(item => {
                 const nroDoc = (item.nro_doc || '').toUpperCase();
                 const cliente = (item.cliente || '').toUpperCase();
                 const ruta = (item.ruta || '').toUpperCase();
@@ -970,11 +965,226 @@
 
                 return coincideTexto && coincideEstatus;
             });
+        }
 
-            if (facturasParaExportar.length === 0) {
-                alert("No hay registros que coincidan con el filtro seleccionado para exportar.");
+        // ==========================================================
+        // EXPORTACIÓN A EXCEL (.XLSX) ELEGANTE Y PERSONALIZADA
+        // ==========================================================
+        function exportarCierreExcel() {
+            const facturasParaExportar = obtenerFacturasFiltradasActivas();
+
+            if (!facturasParaExportar || facturasParaExportar.length === 0) {
+                alert("No hay facturas que coincidan con el filtro activo para exportar a Excel.");
                 return;
             }
+
+            const estatusFiltro = document.getElementById('filtroEstatusPedidos').value;
+            let nombreArchivoSufijo = "Cierre_General";
+            if (estatusFiltro === 'PENDIENTE') nombreArchivoSufijo = "Facturas_Pendientes";
+            else if (estatusFiltro === 'ENTREGADO') nombreArchivoSufijo = "Facturas_Entregadas";
+            else if (estatusFiltro === 'ANULADA') nombreArchivoSufijo = "Facturas_Anuladas";
+            else if (estatusFiltro === 'RECIBIDO_CB') nombreArchivoSufijo = "Facturas_Recibidas_CB";
+            else if (estatusFiltro === 'ENTREGADO_NO_RECIBIDO') nombreArchivoSufijo = "Facturas_Entregadas_No_Recibidas";
+
+            // Estilos tipográficos y de celdas
+            const estiloTitulo = {
+                font: { name: "Arial", sz: 14, bold: true, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: "991B1B" } }, // Rojo Corporativo Altrom
+                alignment: { horizontal: "center", vertical: "center" }
+            };
+
+            const estiloSubtitulo = {
+                font: { name: "Arial", sz: 10, bold: true, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: "EA580C" } }, // Naranja Altrom
+                alignment: { horizontal: "center", vertical: "center" }
+            };
+
+            const estiloHeader = {
+                font: { name: "Arial", sz: 9, bold: true, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: "1E3A8A" } }, // Azul Marino Ejecutivo
+                alignment: { horizontal: "center", vertical: "center" },
+                border: {
+                    top: { style: "thin", color: { rgb: "CCCCCC" } },
+                    bottom: { style: "medium", color: { rgb: "000000" } },
+                    left: { style: "thin", color: { rgb: "CCCCCC" } },
+                    right: { style: "thin", color: { rgb: "CCCCCC" } }
+                }
+            };
+
+            const estiloCeldaTexto = {
+                font: { name: "Arial", sz: 8.5 },
+                alignment: { vertical: "center" }
+            };
+
+            const estiloCliente = {
+                font: { name: "Arial", sz: 8.5, bold: true, color: { rgb: "B91C1C" } }, // Rojo Cliente
+                alignment: { vertical: "center" }
+            };
+
+            const estiloMontoBs = {
+                font: { name: "Arial", sz: 8.5 },
+                alignment: { horizontal: "right", vertical: "center" }
+            };
+
+            const estiloMontoUSD = {
+                font: { name: "Arial", sz: 8.5, bold: true, color: { rgb: "047857" } }, // Verde Moneda
+                alignment: { horizontal: "right", vertical: "center" }
+            };
+
+            const estiloTotalFinal = {
+                font: { name: "Arial", sz: 9.5, bold: true, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: "0F172A" } }, // Dark Slate
+                alignment: { horizontal: "right", vertical: "center" }
+            };
+
+            // Matriz de datos
+            const ws_data = [
+                ["ALTROM ALIMENTOS, C.A. - CONTROL LOGÍSTICO Y FACTURACIÓN"],
+                [`REPORTE DE CIERRE: ${nombreArchivoSufijo.replace(/_/g, ' ').toUpperCase()} | FECHA: ${new Date().toLocaleDateString('es-VE')}`],
+                [""],
+                ["N° DOC", "CLIENTE", "RUTA", "EMISIÓN", "VENCIMIENTO", "MONTO BS TOTAL", "MONTO $ TOTAL", "ESTATUS", "RECIBIDO CB"]
+            ];
+
+            let totalBs = 0;
+            let totalUSD = 0;
+
+            facturasParaExportar.forEach(item => {
+                const nroDoc = item.nro_doc || 'N/A';
+                const cliente = (item.cliente || 'N/A').toUpperCase();
+                const ruta = (item.ruta || 'N/A').toUpperCase();
+                const emision = convertirFechaExcelATexto(item.fecha_emision);
+                const venc = convertirFechaExcelATexto(item.fecha_venc);
+
+                const numBs = limpiarMonto(item.monto_bs);
+                const numUSD = limpiarMonto(item.monto_usd);
+                totalBs += numBs;
+                totalUSD += numUSD;
+
+                const datosDB = mapaFacturasDB[nroDoc] || { estatus: 'PENDIENTE', recibido_cb: false, fecha_recibido: '' };
+                const estatus = datosDB.estatus;
+                let recibido = 'NO (PTE)';
+                if (datosDB.recibido_cb) {
+                    recibido = datosDB.fecha_recibido ? `SI (${datosDB.fecha_recibido})` : 'SI (RECIBIDO)';
+                }
+
+                ws_data.push([nroDoc, cliente, ruta, emision, venc, numBs, numUSD, estatus, recibido]);
+            });
+
+            // Fila final de totales
+            ws_data.push(["TOTALES:", "", "", "", "", totalBs, totalUSD, "", ""]);
+
+            const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+            // Combinaciones de cabecera (Merge)
+            ws['!merges'] = [
+                { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
+                { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },
+                { s: { r: ws_data.length - 1, c: 0 }, e: { r: ws_data.length - 1, c: 4 } }
+            ];
+
+            // Anchos de columna en Excel
+            ws['!cols'] = [
+                { wch: 14 }, // N° Doc
+                { wch: 42 }, // Cliente
+                { wch: 16 }, // Ruta
+                { wch: 14 }, // Emisión
+                { wch: 14 }, // Vencimiento
+                { wch: 18 }, // Monto Bs
+                { wch: 16 }, // Monto USD
+                { wch: 16 }, // Estatus
+                { wch: 24 }  // Recibido CB
+            ];
+
+            // Aplicar estilos celda a celda
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            for (let R = range.s.r; R <= range.e.r; ++R) {
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
+                    if (!ws[cell_ref]) continue;
+
+                    // Título Principal
+                    if (R === 0) {
+                        ws[cell_ref].s = estiloTitulo;
+                    } 
+                    // Subtítulo
+                    else if (R === 1) {
+                        ws[cell_ref].s = estiloSubtitulo;
+                    } 
+                    // Encabezados de Tabla (Azul)
+                    else if (R === 3) {
+                        ws[cell_ref].s = estiloHeader;
+                    } 
+                    // Fila final de Totales
+                    else if (R === ws_data.length - 1) {
+                        ws[cell_ref].s = estiloTotalFinal;
+                        if (C === 5) ws[cell_ref].z = '#,##0.00';
+                        if (C === 6) ws[cell_ref].z = '$#,##0.00';
+                    } 
+                    // Filas de Datos
+                    else if (R > 3) {
+                        if (C === 1) {
+                            ws[cell_ref].s = estiloCliente; // Cliente en Rojo
+                        } else if (C === 5) {
+                            ws[cell_ref].s = estiloMontoBs;
+                            ws[cell_ref].z = '#,##0.00';
+                        } else if (C === 6) {
+                            ws[cell_ref].s = estiloMontoUSD; // Monto USD en Verde
+                            ws[cell_ref].z = '$#,##0.00';
+                        } else if (C === 7) {
+                            // Colores de estatus
+                            const valorEstatus = String(ws[cell_ref].v).toUpperCase();
+                            let bgRGB = "FFFFFF";
+                            let textRGB = "000000";
+
+                            if (valorEstatus === 'ENTREGADO') {
+                                bgRGB = "D1FAE5"; // Verde claro
+                                textRGB = "065F46";
+                            } else if (valorEstatus === 'ANULADA') {
+                                bgRGB = "FEE2E2"; // Rojo claro
+                                textRGB = "991B1B";
+                            } else if (valorEstatus === 'PENDIENTE') {
+                                bgRGB = "FFEDD5"; // Naranja claro
+                                textRGB = "9A3412";
+                            }
+
+                            ws[cell_ref].s = {
+                                font: { name: "Arial", sz: 8.5, bold: true, color: { rgb: textRGB } },
+                                fill: { fgColor: { rgb: bgRGB } },
+                                alignment: { horizontal: "center", vertical: "center" }
+                            };
+                        } else if (C === 8) {
+                            const valRecibido = String(ws[cell_ref].v);
+                            const tildado = valRecibido.startsWith('SI');
+                            ws[cell_ref].s = {
+                                font: { name: "Arial", sz: 8, bold: tildado, color: { rgb: tildado ? "047857" : "64748B" } },
+                                alignment: { horizontal: "center", vertical: "center" }
+                            };
+                        } else {
+                            ws[cell_ref].s = estiloCeldaTexto;
+                        }
+                    }
+                }
+            }
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Facturación Altrom");
+            XLSX.writeFile(wb, `Altrom_${nombreArchivoSufijo}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+
+            registrarAuditoria("EXPORTAR_CIERRE_EXCEL", `Exportó Excel filtrado (${estatusFiltro}) con ${facturasParaExportar.length} facturas`);
+        }
+
+        // ==========================================================
+        // EXPORTACIÓN DINÁMICA DE REPORTE EN PDF
+        // ==========================================================
+        function exportarCierrePDF() {
+            const facturasParaExportar = obtenerFacturasFiltradasActivas();
+
+            if (!facturasParaExportar || facturasParaExportar.length === 0) {
+                alert("No hay facturas que coincidan con el filtro activo para exportar a PDF.");
+                return;
+            }
+
+            const estatusFiltro = document.getElementById('filtroEstatusPedidos').value;
 
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('l', 'mm', 'a4'); 
@@ -1090,9 +1300,9 @@
 
         async function eliminarLotesFacturas() {
             if (cacheFilasDrive && cacheFilasDrive.length > 0) {
-                const deseaDescargar = confirm("💡 Sugerencia: ¿Deseas descargar el reporte PDF del Cierre Mensual antes de vaciar las facturas?");
+                const deseaDescargar = confirm("💡 Sugerencia: ¿Deseas descargar el reporte PDF o Excel del Cierre Mensual antes de vaciar las facturas?");
                 if (deseaDescargar) {
-                    exportarCierrePDF();
+                    exportarCierreExcel();
                 }
             }
 
@@ -1108,7 +1318,7 @@
         }
 
         // ==========================================================
-        // RENDERIZADO OPTIMIZADO DE TABLA
+        // RENDERIZADO DE TABLA
         // ==========================================================
         function procesarTablaPedidos() {
             const tabla = document.getElementById('tablaPedidos');
@@ -1190,9 +1400,6 @@
             filtrarPedidos();
         }
 
-        // ==========================================================
-        // FILTRADO ULTRARRÁPIDO POR ATRIBUTOS
-        // ==========================================================
         function filtrarPedidos() {
             const textoBuscador = document.getElementById('buscadorPedidos').value.toUpperCase().trim();
             const estatusFiltro = document.getElementById('filtroEstatusPedidos').value;
