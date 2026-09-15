@@ -617,67 +617,100 @@
             }
         }
 
+        // ==========================================================
+        // SINCRONIZACIÓN CORREGIDA (SIN LÍMITE DE 1000 REGISTROS Y TRIM)
+        // ==========================================================
         async function syncFacturasSupabase() {
             const localRecibidos = JSON.parse(localStorage.getItem('altrom_recibidos_local') || '{}');
             
-            const { data } = await _supabase.from('control_facturas').select('id_factura, estatus, recibido_cb, fecha_recibido');
+            const { data, error } = await _supabase
+                .from('control_facturas')
+                .select('id_factura, estatus, recibido_cb, fecha_recibido')
+                .order('id_factura', { ascending: false })
+                .limit(25000);
+                
             mapaFacturasDB = {};
             
             if (data) {
                 data.forEach(f => {
-                    const loc = localRecibidos[f.id_factura];
-                    mapaFacturasDB[f.id_factura] = { 
+                    const key = String(f.id_factura).trim();
+                    const loc = localRecibidos[key];
+                    mapaFacturasDB[key] = { 
                         estatus: f.estatus || 'PENDIENTE', 
-                        recibido_cb: f.recibido_cb || (loc ? loc.recibido : false),
+                        recibido_cb: f.recibido_cb !== null ? f.recibido_cb : (loc ? loc.recibido : false),
                         fecha_recibido: f.fecha_recibido || (loc ? loc.fecha : '')
                     };
                 });
             }
 
             Object.keys(localRecibidos).forEach(idFact => {
-                if (!mapaFacturasDB[idFact]) {
-                    mapaFacturasDB[idFact] = {
+                const key = String(idFact).trim();
+                if (!mapaFacturasDB[key]) {
+                    mapaFacturasDB[key] = {
                         estatus: 'PENDIENTE',
-                        recibido_cb: localRecibidos[idFact].recibido,
-                        fecha_recibido: localRecibidos[idFact].fecha
+                        recibido_cb: localRecibidos[key].recibido,
+                        fecha_recibido: localRecibidos[key].fecha
                     };
-                } else if (localRecibidos[idFact].recibido) {
-                    mapaFacturasDB[idFact].recibido_cb = true;
-                    mapaFacturasDB[idFact].fecha_recibido = localRecibidos[idFact].fecha;
                 }
             });
         }
 
         // ==========================================================
-        // ACTUALIZACIÓN SELECTIVA EN CALIENTE
+        // GUARDADO ROBUSTO (CHECK SELECT + UPDATE/INSERT FALLBACK)
         // ==========================================================
         async function modificarEstatusFacturaDB(idFactura, valor) {
-            if (!mapaFacturasDB[idFactura]) mapaFacturasDB[idFactura] = { estatus: 'PENDIENTE', recibido_cb: false, fecha_recibido: '' };
-            mapaFacturasDB[idFactura].estatus = valor;
+            const cleanId = String(idFactura).trim();
+            if (!mapaFacturasDB[cleanId]) {
+                mapaFacturasDB[cleanId] = { estatus: 'PENDIENTE', recibido_cb: false, fecha_recibido: '' };
+            }
+            mapaFacturasDB[cleanId].estatus = valor;
 
-            const fila = document.getElementById(`fila-pedido-${idFactura}`);
+            const fila = document.getElementById(`fila-pedido-${cleanId}`);
             if (fila) {
                 fila.setAttribute('data-estatus', valor);
             }
 
-            registrarAuditoria("CAMBIO_ESTATUS_FACTURA", `Factura N° ${idFactura} cambió a ${valor}`);
+            registrarAuditoria("CAMBIO_ESTATUS_FACTURA", `Factura N° ${cleanId} cambió a ${valor}`);
 
             try {
-                await _supabase.from('control_facturas').upsert({
-                    id_factura: idFactura,
-                    estatus: valor,
-                    recibido_cb: mapaFacturasDB[idFactura].recibido_cb || false,
-                    fecha_recibido: mapaFacturasDB[idFactura].fecha_recibido || ''
-                }, { onConflict: 'id_factura' });
+                const { data: existente, error: errSelect } = await _supabase
+                    .from('control_facturas')
+                    .select('id_factura')
+                    .eq('id_factura', cleanId)
+                    .maybeSingle();
+
+                if (errSelect) throw errSelect;
+
+                if (existente) {
+                    const { error: errUpdate } = await _supabase
+                        .from('control_facturas')
+                        .update({ estatus: valor })
+                        .eq('id_factura', cleanId);
+                    if (errUpdate) throw errUpdate;
+                } else {
+                    const { error: errInsert } = await _supabase
+                        .from('control_facturas')
+                        .insert([{
+                            id_factura: cleanId,
+                            estatus: valor,
+                            recibido_cb: mapaFacturasDB[cleanId].recibido_cb || false,
+                            fecha_recibido: mapaFacturasDB[cleanId].fecha_recibido || ''
+                        }]);
+                    if (errInsert) throw errInsert;
+                }
             } catch (err) {
-                console.warn("Error en sync de estatus:", err);
+                console.error("Error al guardar estatus:", err);
+                alert(`⚠️ Error de guardado: ${err.message || 'Fallo de conexión'}`);
             }
         }
 
         async function modificarTildeRecibidoCB(idFactura, tildado) {
-            if (!mapaFacturasDB[idFactura]) mapaFacturasDB[idFactura] = { estatus: 'PENDIENTE', recibido_cb: false, fecha_recibido: '' };
+            const cleanId = String(idFactura).trim();
+            if (!mapaFacturasDB[cleanId]) {
+                mapaFacturasDB[cleanId] = { estatus: 'PENDIENTE', recibido_cb: false, fecha_recibido: '' };
+            }
             
-            if (usuarioActual.rol === 'Cuentas por cobrar' && !tildado && mapaFacturasDB[idFactura].recibido_cb) {
+            if (usuarioActual.rol === 'Cuentas por cobrar' && !tildado && mapaFacturasDB[cleanId].recibido_cb) {
                 alert("Atención: Como usuario de Cuentas por Cobrar no tienes permisos para desmarcar una factura ya recibida.");
                 return;
             }
@@ -688,14 +721,14 @@
                 fechaHoraStr = ahora.toLocaleDateString('es-VE') + ' ' + ahora.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
             }
 
-            mapaFacturasDB[idFactura].recibido_cb = tildado;
-            mapaFacturasDB[idFactura].fecha_recibido = fechaHoraStr;
+            mapaFacturasDB[cleanId].recibido_cb = tildado;
+            mapaFacturasDB[cleanId].fecha_recibido = fechaHoraStr;
             
             const localRecibidos = JSON.parse(localStorage.getItem('altrom_recibidos_local') || '{}');
-            localRecibidos[idFactura] = { recibido: tildado, fecha: fechaHoraStr };
+            localRecibidos[cleanId] = { recibido: tildado, fecha: fechaHoraStr };
             localStorage.setItem('altrom_recibidos_local', JSON.stringify(localRecibidos));
 
-            const fila = document.getElementById(`fila-pedido-${idFactura}`);
+            const fila = document.getElementById(`fila-pedido-${cleanId}`);
             if (fila) {
                 fila.setAttribute('data-recibido', String(tildado));
                 const celda = fila.querySelector('.celda-recibido-cb');
@@ -705,11 +738,11 @@
                             <div class="inline-flex flex-col items-center">
                                 <span class="bg-emerald-600 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-md shadow-sm">✓ RECIBIDO</span>
                                 <span class="text-[9px] text-slate-500 font-semibold mt-1">${fechaHoraStr}</span>
-                            </div>` : `<input type="checkbox" onchange="modificarTildeRecibidoCB('${idFactura}', this.checked)" class="w-5 h-5 accent-emerald-600 cursor-pointer rounded">`;
+                            </div>` : `<input type="checkbox" onchange="modificarTildeRecibidoCB('${cleanId}', this.checked)" class="w-5 h-5 accent-emerald-600 cursor-pointer rounded">`;
                     } else if (usuarioActual.rol === 'Desarrollador') {
                         celda.innerHTML = `
                             <div class="flex flex-col items-center">
-                                <input type="checkbox" ${tildado ? 'checked' : ''} onchange="modificarTildeRecibidoCB('${idFactura}', this.checked)" class="w-5 h-5 accent-emerald-600 cursor-pointer rounded">
+                                <input type="checkbox" ${tildado ? 'checked' : ''} onchange="modificarTildeRecibidoCB('${cleanId}', this.checked)" class="w-5 h-5 accent-emerald-600 cursor-pointer rounded">
                                 ${tildado && fechaHoraStr ? `<span class="text-[8px] text-slate-500 font-semibold mt-1">${fechaHoraStr}</span>` : ''}
                             </div>`;
                     } else {
@@ -721,17 +754,40 @@
             }
 
             const estadoTexto = tildado ? `MARCADO COMO RECIBIDO (${fechaHoraStr})` : "DESMARCADO DE RECIBIDO";
-            registrarAuditoria("CAMBIO_RECIBIDO_CB", `Factura N° ${idFactura} -> ${estadoTexto}`);
+            registrarAuditoria("CAMBIO_RECIBIDO_CB", `Factura N° ${cleanId} -> ${estadoTexto}`);
 
             try {
-                await _supabase.from('control_facturas').upsert({ 
-                    id_factura: idFactura, 
-                    estatus: mapaFacturasDB[idFactura].estatus || 'PENDIENTE', 
-                    recibido_cb: tildado, 
-                    fecha_recibido: fechaHoraStr 
-                }, { onConflict: 'id_factura' });
+                const { data: existente, error: errSelect } = await _supabase
+                    .from('control_facturas')
+                    .select('id_factura')
+                    .eq('id_factura', cleanId)
+                    .maybeSingle();
+
+                if (errSelect) throw errSelect;
+
+                if (existente) {
+                    const { error: errUpdate } = await _supabase
+                        .from('control_facturas')
+                        .update({ 
+                            recibido_cb: tildado, 
+                            fecha_recibido: fechaHoraStr 
+                        })
+                        .eq('id_factura', cleanId);
+                    if (errUpdate) throw errUpdate;
+                } else {
+                    const { error: errInsert } = await _supabase
+                        .from('control_facturas')
+                        .insert([{ 
+                            id_factura: cleanId, 
+                            estatus: mapaFacturasDB[cleanId].estatus || 'PENDIENTE', 
+                            recibido_cb: tildado, 
+                            fecha_recibido: fechaHoraStr 
+                        }]);
+                    if (errInsert) throw errInsert;
+                }
             } catch (err) {
-                console.warn("Sincronización en segundo plano:", err);
+                console.error("Error al guardar recibido:", err);
+                alert(`⚠️ Error de guardado de recibido: ${err.message || 'Fallo de conexión'}`);
             }
         }
 
@@ -917,7 +973,7 @@
                 if (data && data.length > 0) {
                     const mapaUnico = {};
                     data.forEach(item => {
-                        const docKey = item.nro_doc;
+                        const docKey = String(item.nro_doc).trim();
                         if (!mapaUnico[docKey]) {
                             mapaUnico[docKey] = { ...item };
                         } else {
@@ -944,13 +1000,13 @@
             const estatusFiltro = document.getElementById('filtroEstatusPedidos').value;
 
             return cacheFilasDrive.filter(item => {
-                const nroDoc = (item.nro_doc || '').toUpperCase();
+                const nroDoc = String(item.nro_doc || '').trim().toUpperCase();
                 const cliente = (item.cliente || '').toUpperCase();
                 const ruta = (item.ruta || '').toUpperCase();
 
                 const coincideTexto = !textoBuscador || nroDoc.includes(textoBuscador) || cliente.includes(textoBuscador) || ruta.includes(textoBuscador);
 
-                const datosDB = mapaFacturasDB[item.nro_doc] || { estatus: 'PENDIENTE', recibido_cb: false, fecha_recibido: '' };
+                const datosDB = mapaFacturasDB[nroDoc] || { estatus: 'PENDIENTE', recibido_cb: false, fecha_recibido: '' };
                 const status = datosDB.estatus;
                 const recibidoCB = datosDB.recibido_cb;
 
@@ -986,22 +1042,21 @@
             else if (estatusFiltro === 'RECIBIDO_CB') nombreArchivoSufijo = "Facturas_Recibidas_CB";
             else if (estatusFiltro === 'ENTREGADO_NO_RECIBIDO') nombreArchivoSufijo = "Facturas_Entregadas_No_Recibidas";
 
-            // Estilos tipográficos y de celdas
             const estiloTitulo = {
                 font: { name: "Arial", sz: 14, bold: true, color: { rgb: "FFFFFF" } },
-                fill: { fgColor: { rgb: "991B1B" } }, // Rojo Corporativo Altrom
+                fill: { fgColor: { rgb: "991B1B" } },
                 alignment: { horizontal: "center", vertical: "center" }
             };
 
             const estiloSubtitulo = {
                 font: { name: "Arial", sz: 10, bold: true, color: { rgb: "FFFFFF" } },
-                fill: { fgColor: { rgb: "EA580C" } }, // Naranja Altrom
+                fill: { fgColor: { rgb: "EA580C" } },
                 alignment: { horizontal: "center", vertical: "center" }
             };
 
             const estiloHeader = {
                 font: { name: "Arial", sz: 9, bold: true, color: { rgb: "FFFFFF" } },
-                fill: { fgColor: { rgb: "1E3A8A" } }, // Azul Marino Ejecutivo
+                fill: { fgColor: { rgb: "1E3A8A" } },
                 alignment: { horizontal: "center", vertical: "center" },
                 border: {
                     top: { style: "thin", color: { rgb: "CCCCCC" } },
@@ -1017,7 +1072,7 @@
             };
 
             const estiloCliente = {
-                font: { name: "Arial", sz: 8.5, bold: true, color: { rgb: "B91C1C" } }, // Rojo Cliente
+                font: { name: "Arial", sz: 8.5, bold: true, color: { rgb: "B91C1C" } },
                 alignment: { vertical: "center" }
             };
 
@@ -1027,17 +1082,16 @@
             };
 
             const estiloMontoUSD = {
-                font: { name: "Arial", sz: 8.5, bold: true, color: { rgb: "047857" } }, // Verde Moneda
+                font: { name: "Arial", sz: 8.5, bold: true, color: { rgb: "047857" } },
                 alignment: { horizontal: "right", vertical: "center" }
             };
 
             const estiloTotalFinal = {
                 font: { name: "Arial", sz: 9.5, bold: true, color: { rgb: "FFFFFF" } },
-                fill: { fgColor: { rgb: "0F172A" } }, // Dark Slate
+                fill: { fgColor: { rgb: "0F172A" } },
                 alignment: { horizontal: "right", vertical: "center" }
             };
 
-            // Matriz de datos
             const ws_data = [
                 ["ALTROM ALIMENTOS, C.A. - CONTROL LOGÍSTICO Y FACTURACIÓN"],
                 [`REPORTE DE CIERRE: ${nombreArchivoSufijo.replace(/_/g, ' ').toUpperCase()} | FECHA: ${new Date().toLocaleDateString('es-VE')}`],
@@ -1049,7 +1103,7 @@
             let totalUSD = 0;
 
             facturasParaExportar.forEach(item => {
-                const nroDoc = item.nro_doc || 'N/A';
+                const nroDoc = String(item.nro_doc || 'N/A').trim();
                 const cliente = (item.cliente || 'N/A').toUpperCase();
                 const ruta = (item.ruta || 'N/A').toUpperCase();
                 const emision = convertirFechaExcelATexto(item.fecha_emision);
@@ -1070,80 +1124,66 @@
                 ws_data.push([nroDoc, cliente, ruta, emision, venc, numBs, numUSD, estatus, recibido]);
             });
 
-            // Fila final de totales
             ws_data.push(["TOTALES:", "", "", "", "", totalBs, totalUSD, "", ""]);
 
             const ws = XLSX.utils.aoa_to_sheet(ws_data);
 
-            // Combinaciones de cabecera (Merge)
             ws['!merges'] = [
                 { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
                 { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },
                 { s: { r: ws_data.length - 1, c: 0 }, e: { r: ws_data.length - 1, c: 4 } }
             ];
 
-            // Anchos de columna en Excel
             ws['!cols'] = [
-                { wch: 14 }, // N° Doc
-                { wch: 42 }, // Cliente
-                { wch: 16 }, // Ruta
-                { wch: 14 }, // Emisión
-                { wch: 14 }, // Vencimiento
-                { wch: 18 }, // Monto Bs
-                { wch: 16 }, // Monto USD
-                { wch: 16 }, // Estatus
-                { wch: 24 }  // Recibido CB
+                { wch: 14 },
+                { wch: 42 },
+                { wch: 16 },
+                { wch: 14 },
+                { wch: 14 },
+                { wch: 18 },
+                { wch: 16 },
+                { wch: 16 },
+                { wch: 24 }
             ];
 
-            // Aplicar estilos celda a celda
             const range = XLSX.utils.decode_range(ws['!ref']);
             for (let R = range.s.r; R <= range.e.r; ++R) {
                 for (let C = range.s.c; C <= range.e.c; ++C) {
                     const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
                     if (!ws[cell_ref]) continue;
 
-                    // Título Principal
                     if (R === 0) {
                         ws[cell_ref].s = estiloTitulo;
-                    } 
-                    // Subtítulo
-                    else if (R === 1) {
+                    } else if (R === 1) {
                         ws[cell_ref].s = estiloSubtitulo;
-                    } 
-                    // Encabezados de Tabla (Azul)
-                    else if (R === 3) {
+                    } else if (R === 3) {
                         ws[cell_ref].s = estiloHeader;
-                    } 
-                    // Fila final de Totales
-                    else if (R === ws_data.length - 1) {
+                    } else if (R === ws_data.length - 1) {
                         ws[cell_ref].s = estiloTotalFinal;
                         if (C === 5) ws[cell_ref].z = '#,##0.00';
                         if (C === 6) ws[cell_ref].z = '$#,##0.00';
-                    } 
-                    // Filas de Datos
-                    else if (R > 3) {
+                    } else if (R > 3) {
                         if (C === 1) {
-                            ws[cell_ref].s = estiloCliente; // Cliente en Rojo
+                            ws[cell_ref].s = estiloCliente;
                         } else if (C === 5) {
                             ws[cell_ref].s = estiloMontoBs;
                             ws[cell_ref].z = '#,##0.00';
                         } else if (C === 6) {
-                            ws[cell_ref].s = estiloMontoUSD; // Monto USD en Verde
+                            ws[cell_ref].s = estiloMontoUSD;
                             ws[cell_ref].z = '$#,##0.00';
                         } else if (C === 7) {
-                            // Colores de estatus
                             const valorEstatus = String(ws[cell_ref].v).toUpperCase();
                             let bgRGB = "FFFFFF";
                             let textRGB = "000000";
 
                             if (valorEstatus === 'ENTREGADO') {
-                                bgRGB = "D1FAE5"; // Verde claro
+                                bgRGB = "D1FAE5";
                                 textRGB = "065F46";
                             } else if (valorEstatus === 'ANULADA') {
-                                bgRGB = "FEE2E2"; // Rojo claro
+                                bgRGB = "FEE2E2";
                                 textRGB = "991B1B";
                             } else if (valorEstatus === 'PENDIENTE') {
-                                bgRGB = "FFEDD5"; // Naranja claro
+                                bgRGB = "FFEDD5";
                                 textRGB = "9A3412";
                             }
 
@@ -1229,7 +1269,7 @@
             let totalUSD = 0;
 
             const filasTabla = facturasParaExportar.map(item => {
-                const nroDoc = item.nro_doc || 'N/A';
+                const nroDoc = String(item.nro_doc || 'N/A').trim();
                 const cliente = item.cliente || 'N/A';
                 const ruta = item.ruta || 'N/A';
                 
@@ -1318,14 +1358,15 @@
         }
 
         // ==========================================================
-        // RENDERIZADO DE TABLA
+        // RENDERIZADO DE TABLA (CLAVES CON TRIM Y MATCH EXACTO)
         // ==========================================================
         function procesarTablaPedidos() {
             const tabla = document.getElementById('tablaPedidos');
             let html = '';
             
             cacheFilasDrive.forEach((item) => {
-                const nroDocumento = item.nro_doc || item[7] || 'N/A'; 
+                const rawDoc = item.nro_doc || item[7] || 'N/A'; 
+                const nroDocumento = String(rawDoc).trim();
                 const cliente = item.cliente || item[5] || 'N/A';      
                 const ruta = item.ruta || item[3] || 'N/A';         
                 const fechaEmision = convertirFechaExcelATexto(item.fecha_emision);   
