@@ -510,7 +510,6 @@
                 }
 
                 if (!perfil) {
-                    // Fallback seguro: extraer rol de la metadata de usuario si existe
                     const rolMeta = (authUser.user_metadata && authUser.user_metadata.rol) ? authUser.user_metadata.rol : 'Visualizador';
                     usuarioActual = { id: authUser.id, email: authUser.email, rol: rolMeta, aprobado: true };
                     inicializarEntornoWeb();
@@ -678,45 +677,62 @@
             }
         }
 
-        // ==========================================================
-        // SINCRONIZACIÓN TOLERANTE A FORMATOS
-        // ==========================================================
+        // =========================================================================
+        // SINCRONIZACIÓN PAGINADA COMPLETA (DESCARGA TODAS LAS FILAS SIN TOPE 1000)
+        // =========================================================================
         async function syncFacturasSupabase() {
             const localRecibidos = JSON.parse(localStorage.getItem('altrom_recibidos_local') || '{}');
             mapaFacturasDB = {};
 
             try {
-                const { data, error } = await _supabase
-                    .from('control_facturas')
-                    .select('id_factura, estatus, recibido_cb, fecha_recibido')
-                    .limit(50000);
-                
-                if (error) {
-                    console.error("Error al traer control_facturas:", error);
-                } else if (data) {
-                    data.forEach(f => {
-                        const rawKey = String(f.id_factura || '').trim();
-                        if (!rawKey) return;
-                        
-                        const loc = localRecibidos[rawKey];
-                        const estatusNormalizado = String(f.estatus || 'PENDIENTE').trim().toUpperCase();
+                let desde = 0;
+                const tamanoBloque = 1000;
+                let continuar = true;
+                let todasLasFacturas = [];
 
-                        const registroObj = { 
-                            estatus: estatusNormalizado, 
-                            recibido_cb: f.recibido_cb !== null && f.recibido_cb !== undefined ? f.recibido_cb : (loc ? loc.recibido : false),
-                            fecha_recibido: f.fecha_recibido || (loc ? loc.fecha : '')
-                        };
+                while (continuar) {
+                    const { data, error } = await _supabase
+                        .from('control_facturas')
+                        .select('id_factura, estatus, recibido_cb, fecha_recibido')
+                        .range(desde, desde + tamanoBloque - 1);
 
-                        // Mapeo exacto
-                        mapaFacturasDB[rawKey] = registroObj;
-                        
-                        // Mapeo sin ceros a la izquierda para match tolerante
-                        const keyInt = parseInt(rawKey, 10);
-                        if (!isNaN(keyInt)) {
-                            mapaFacturasDB[String(keyInt)] = registroObj;
+                    if (error) {
+                        console.error("Error al traer lote de control_facturas:", error);
+                        break;
+                    }
+
+                    if (data && data.length > 0) {
+                        todasLasFacturas.push(...data);
+                        if (data.length < tamanoBloque) {
+                            continuar = false;
+                        } else {
+                            desde += tamanoBloque;
                         }
-                    });
+                    } else {
+                        continuar = false;
+                    }
                 }
+
+                todasLasFacturas.forEach(f => {
+                    const rawKey = String(f.id_factura || '').trim();
+                    if (!rawKey) return;
+
+                    const loc = localRecibidos[rawKey];
+                    const estatusNormalizado = String(f.estatus || 'PENDIENTE').trim().toUpperCase();
+
+                    const registroObj = {
+                        estatus: estatusNormalizado,
+                        recibido_cb: f.recibido_cb !== null && f.recibido_cb !== undefined ? f.recibido_cb : (loc ? loc.recibido : false),
+                        fecha_recibido: f.fecha_recibido || (loc ? loc.fecha : '')
+                    };
+
+                    mapaFacturasDB[rawKey] = registroObj;
+
+                    const keyInt = parseInt(rawKey, 10);
+                    if (!isNaN(keyInt)) {
+                        mapaFacturasDB[String(keyInt)] = registroObj;
+                    }
+                });
             } catch (err) {
                 console.error("Excepción en syncFacturasSupabase:", err);
             }
