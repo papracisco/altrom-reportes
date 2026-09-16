@@ -368,6 +368,21 @@
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // ==========================================================
+        // LISTENER PERMANENTE DE SESIÓN Y AUTORRENOVACIÓN DE TOKEN
+        // ==========================================================
+        _supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
+                if (session && !usuarioActual) {
+                    await evaluarPerfilYAcceso(session.user);
+                }
+            } else if (event === 'SIGNED_OUT') {
+                usuarioActual = null;
+                document.getElementById('contenidoWeb').classList.add('hidden-content');
+                document.getElementById('pantallaAuth').classList.remove('hidden-content');
+            }
+        });
+
+        // ==========================================================
         // SISTEMA GLOBAL DE AUDITORÍA
         // ==========================================================
         async function registrarAuditoria(accion, detalles = "") {
@@ -379,7 +394,10 @@
                 detalles: detalles
             };
             try {
-                await _supabase.from('auditoria_altrom').insert([logData]);
+                const { error } = await _supabase.from('auditoria_altrom').insert([logData]);
+                if (error && error.status === 401) {
+                    console.warn("Sesión caducada al auditar.");
+                }
             } catch (err) {
                 console.error("Error al registrar auditoría:", err);
             }
@@ -389,29 +407,35 @@
             const container = document.getElementById('subTabAuditoria');
             container.innerHTML = '<p class="text-xs text-slate-500 italic text-center pt-4">Cargando registros de auditoría...</p>';
             
-            const { data, error } = await _supabase
-                .from('auditoria_altrom')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(50);
-                
-            if (data && data.length > 0) {
-                container.innerHTML = data.map(log => {
-                    const fechaObj = new Date(log.created_at);
-                    const fechaStr = fechaObj.toLocaleDateString('es-VE') + ' ' + fechaObj.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+            try {
+                const { data, error } = await _supabase
+                    .from('auditoria_altrom')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(50);
                     
-                    return `
-                        <div class="p-3 bg-slate-800 rounded-xl border border-slate-700 text-xs text-slate-300">
-                            <div class="flex justify-between items-center mb-1">
-                                <span class="font-bold text-orange-400">${log.usuario} <span class="text-[9px] text-slate-400">(${log.rol})</span></span>
-                                <span class="text-[8px] text-slate-500">${fechaStr}</span>
-                            </div>
-                            <p class="font-semibold text-white uppercase text-[10px]">${log.accion}</p>
-                            ${log.detalles ? `<p class="text-[9px] text-slate-400 italic mt-0.5">${log.detalles}</p>` : ''}
-                        </div>`;
-                }).join('');
-            } else {
-                container.innerHTML = '<p class="text-xs text-slate-500 italic text-center pt-4">No hay logs de auditoría aún.</p>';
+                if (error) throw error;
+
+                if (data && data.length > 0) {
+                    container.innerHTML = data.map(log => {
+                        const fechaObj = new Date(log.created_at);
+                        const fechaStr = fechaObj.toLocaleDateString('es-VE') + ' ' + fechaObj.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+                        
+                        return `
+                            <div class="p-3 bg-slate-800 rounded-xl border border-slate-700 text-xs text-slate-300">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="font-bold text-orange-400">${log.usuario} <span class="text-[9px] text-slate-400">(${log.rol})</span></span>
+                                    <span class="text-[8px] text-slate-500">${fechaStr}</span>
+                                </div>
+                                <p class="font-semibold text-white uppercase text-[10px]">${log.accion}</p>
+                                ${log.detalles ? `<p class="text-[9px] text-slate-400 italic mt-0.5">${log.detalles}</p>` : ''}
+                            </div>`;
+                    }).join('');
+                } else {
+                    container.innerHTML = '<p class="text-xs text-slate-500 italic text-center pt-4">No hay logs de auditoría aún.</p>';
+                }
+            } catch (err) {
+                container.innerHTML = `<p class="text-xs text-red-400 italic text-center pt-4">Error al cargar logs: ${err.message || 'Sin autorización'}</p>`;
             }
         }
 
@@ -451,43 +475,61 @@
         }
 
         async function checkSession() {
-            const { data: { session } } = await _supabase.auth.getSession();
-            if (session) { 
-                evaluarPerfilYAcceso(session.user);
-            } else { 
-                document.getElementById('pantallaAuth').classList.remove('hidden-content'); 
+            try {
+                const { data: { session }, error } = await _supabase.auth.getSession();
+                if (error || !session) { 
+                    await _supabase.auth.signOut();
+                    document.getElementById('pantallaAuth').classList.remove('hidden-content'); 
+                    return;
+                }
+                await evaluarPerfilYAcceso(session.user);
+            } catch (err) {
+                console.error("Error al comprobar sesión:", err);
+                document.getElementById('pantallaAuth').classList.remove('hidden-content');
             }
         }
 
         async function evaluarPerfilYAcceso(authUser) {
-            const { data: perfil, error } = await _supabase.from('perfiles_usuarios').select('*').eq('id', authUser.id).single();
-            
-            if (authUser.email === CORREO_MASTER) {
-                usuarioActual = { id: authUser.id, email: authUser.email, rol: 'Desarrollador', aprobado: true };
-                if (!perfil) {
-                    await _supabase.from('perfiles_usuarios').insert([usuarioActual]);
+            try {
+                const { data: perfil, error } = await _supabase.from('perfiles_usuarios').select('*').eq('id', authUser.id).single();
+                
+                if (error && (error.status === 401 || error.code === 'PGRST301')) {
+                    await _supabase.auth.signOut();
+                    alert("Tu sesión caducó. Inicia sesión nuevamente.");
+                    document.getElementById('pantallaAuth').classList.remove('hidden-content');
+                    return;
                 }
+
+                if (authUser.email === CORREO_MASTER) {
+                    usuarioActual = { id: authUser.id, email: authUser.email, rol: 'Desarrollador', aprobado: true };
+                    if (!perfil) {
+                        await _supabase.from('perfiles_usuarios').insert([usuarioActual]);
+                    }
+                    inicializarEntornoWeb();
+                    registrarAuditoria("INICIO_SESION", "Ingreso como Desarrollador Master");
+                    return;
+                }
+
+                if (error || !perfil) {
+                    await _supabase.auth.signOut();
+                    alert("Perfil institucional no detectado. Regístrate de nuevo.");
+                    location.reload();
+                    return;
+                }
+
+                if (!perfil.aprobado) {
+                    document.getElementById('pantallaAuth').classList.add('hidden-content');
+                    document.getElementById('pantallaEspera').classList.remove('hidden-content');
+                    return;
+                }
+
+                usuarioActual = perfil;
                 inicializarEntornoWeb();
-                registrarAuditoria("INICIO_SESION", "Ingreso como Desarrollador Master");
-                return;
+                registrarAuditoria("INICIO_SESION", `Ingreso al sistema con rol ${perfil.rol}`);
+            } catch (err) {
+                console.error("Fallo de acceso:", err);
+                document.getElementById('pantallaAuth').classList.remove('hidden-content');
             }
-
-            if (error || !perfil) {
-                await _supabase.auth.signOut();
-                alert("Perfil institucional no detectado. Regístrate de nuevo.");
-                location.reload();
-                return;
-            }
-
-            if (!perfil.aprobado) {
-                document.getElementById('pantallaAuth').classList.add('hidden-content');
-                document.getElementById('pantallaEspera').classList.remove('hidden-content');
-                return;
-            }
-
-            usuarioActual = perfil;
-            inicializarEntornoWeb();
-            registrarAuditoria("INICIO_SESION", `Ingreso al sistema con rol ${perfil.rol}`);
         }
 
         function inicializarEntornoWeb() {
@@ -530,8 +572,11 @@
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
-            if (error) { document.getElementById('authMsg').innerText = "Error: " + error.message; }
-            else { evaluarPerfilYAcceso(data.user); }
+            if (error) { 
+                document.getElementById('authMsg').innerText = "Error: " + error.message; 
+            } else { 
+                evaluarPerfilYAcceso(data.user); 
+            }
         }
 
         async function handleSignup() {
@@ -560,7 +605,7 @@
         }
 
         async function fetchGestionUsuarios() {
-            const { data: todos } = await _supabase.from('perfiles_usuarios').select('*');
+            const { data: todos, error } = await _supabase.from('perfiles_usuarios').select('*');
             if(todos) {
                 const divSol = document.getElementById('subTabSolicitudes');
                 const divAct = document.getElementById('subTabActivos');
@@ -618,29 +663,34 @@
         }
 
         // ==========================================================
-        // SINCRONIZACIÓN CORREGIDA (SIN LÍMITE DE 1000 REGISTROS Y TRIM)
+        // SINCRONIZACIÓN CORREGIDA SIN ORDENAMIENTO RESTRICTIVO
         // ==========================================================
         async function syncFacturasSupabase() {
             const localRecibidos = JSON.parse(localStorage.getItem('altrom_recibidos_local') || '{}');
-            
-            const { data, error } = await _supabase
-                .from('control_facturas')
-                .select('id_factura, estatus, recibido_cb, fecha_recibido')
-                .order('id_factura', { ascending: false })
-                .limit(25000);
-                
             mapaFacturasDB = {};
-            
-            if (data) {
-                data.forEach(f => {
-                    const key = String(f.id_factura).trim();
-                    const loc = localRecibidos[key];
-                    mapaFacturasDB[key] = { 
-                        estatus: f.estatus || 'PENDIENTE', 
-                        recibido_cb: f.recibido_cb !== null ? f.recibido_cb : (loc ? loc.recibido : false),
-                        fecha_recibido: f.fecha_recibido || (loc ? loc.fecha : '')
-                    };
-                });
+
+            try {
+                const { data, error } = await _supabase
+                    .from('control_facturas')
+                    .select('id_factura, estatus, recibido_cb, fecha_recibido')
+                    .limit(25000);
+                
+                if (error) {
+                    console.error("Error al traer control_facturas:", error);
+                } else if (data) {
+                    data.forEach(f => {
+                        const key = String(f.id_factura || '').trim();
+                        if (!key) return;
+                        const loc = localRecibidos[key];
+                        mapaFacturasDB[key] = { 
+                            estatus: f.estatus || 'PENDIENTE', 
+                            recibido_cb: f.recibido_cb !== null && f.recibido_cb !== undefined ? f.recibido_cb : (loc ? loc.recibido : false),
+                            fecha_recibido: f.fecha_recibido || (loc ? loc.fecha : '')
+                        };
+                    });
+                }
+            } catch (err) {
+                console.error("Excepción en syncFacturasSupabase:", err);
             }
 
             Object.keys(localRecibidos).forEach(idFact => {
@@ -656,7 +706,7 @@
         }
 
         // ==========================================================
-        // GUARDADO ROBUSTO (CHECK SELECT + UPDATE/INSERT FALLBACK)
+        // GUARDADO CON SELECT + UPDATE/INSERT ROBUSTO
         // ==========================================================
         async function modificarEstatusFacturaDB(idFactura, valor) {
             const cleanId = String(idFactura).trim();
@@ -700,7 +750,7 @@
                 }
             } catch (err) {
                 console.error("Error al guardar estatus:", err);
-                alert(`⚠️ Error de guardado: ${err.message || 'Fallo de conexión'}`);
+                alert(`⚠️ Error al guardar estatus en Supabase: ${err.message || 'Fallo de conexión'}`);
             }
         }
 
@@ -787,7 +837,7 @@
                 }
             } catch (err) {
                 console.error("Error al guardar recibido:", err);
-                alert(`⚠️ Error de guardado de recibido: ${err.message || 'Fallo de conexión'}`);
+                alert(`⚠️ Error al guardar recibido: ${err.message || 'Fallo de conexión'}`);
             }
         }
 
@@ -934,13 +984,17 @@
 
                     if (filasNuevas.length > 0) {
                         const { error } = await _supabase.from('lotes_facturas_altrom').insert(filasNuevas);
-                        if (error) console.warn("Aviso de inserción:", error.message);
+                        if (error) {
+                            console.error("Error al insertar lotes:", error);
+                            alert("Error al guardar en base de datos: " + error.message);
+                            return;
+                        }
                         
                         await cargarLotesFacturasGuardados();
                         registrarAuditoria("IMPORTACION_EXCEL", `Cargó ${filasNuevas.length} facturas desde archivo ${file.name}`);
                         alert(`¡Éxito! Se procesaron y unificaron ${filasNuevas.length} facturas únicas.`);
                     } else {
-                        alert("No se identificaron filas válidas.");
+                        alert("No se identificaron filas válidas en el archivo.");
                     }
                 } catch (err) {
                     console.error("Error al procesar:", err);
@@ -969,11 +1023,19 @@
         async function cargarLotesFacturasGuardados() {
             try {
                 await syncFacturasSupabase();
-                const { data } = await _supabase.from('lotes_facturas_altrom').select('*').order('id', { ascending: true });
+                const { data, error } = await _supabase
+                    .from('lotes_facturas_altrom')
+                    .select('*');
+                
+                if (error) {
+                    console.error("Error al leer lotes_facturas_altrom:", error);
+                }
+
                 if (data && data.length > 0) {
                     const mapaUnico = {};
                     data.forEach(item => {
-                        const docKey = String(item.nro_doc).trim();
+                        const docKey = String(item.nro_doc || '').trim();
+                        if (!docKey) return;
                         if (!mapaUnico[docKey]) {
                             mapaUnico[docKey] = { ...item };
                         } else {
@@ -991,6 +1053,7 @@
                 }
                 procesarTablaPedidos();
             } catch (err) {
+                console.error("Fallo general al cargar lotes:", err);
                 procesarTablaPedidos();
             }
         }
@@ -1380,7 +1443,7 @@
                 const fechaRecibidoCB = datosDB.fecha_recibido || '';
 
                 let renderEstatus = '';
-                if (usuarioActual.rol === 'Logistica' || usuarioActual.rol === 'Desarrollador') {
+                if (usuarioActual && (usuarioActual.rol === 'Logistica' || usuarioActual.rol === 'Desarrollador')) {
                     renderEstatus = `
                         <select onchange="modificarEstatusFacturaDB('${nroDocumento}', this.value)" class="text-[10px] font-bold p-1.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-orange-500 outline-none text-slate-700 uppercase cursor-pointer shadow-sm">
                             <option value="PENDIENTE" ${status === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
@@ -1395,7 +1458,7 @@
                 }
 
                 let renderRecibido = '';
-                if (usuarioActual.rol === 'Cuentas por cobrar') {
+                if (usuarioActual && usuarioActual.rol === 'Cuentas por cobrar') {
                     if (recibidoCB) {
                         renderRecibido = `
                             <div class="inline-flex flex-col items-center">
@@ -1405,7 +1468,7 @@
                     } else {
                         renderRecibido = `<input type="checkbox" onchange="modificarTildeRecibidoCB('${nroDocumento}', this.checked)" class="w-5 h-5 accent-emerald-600 cursor-pointer rounded">`;
                     }
-                } else if (usuarioActual.rol === 'Desarrollador') {
+                } else if (usuarioActual && usuarioActual.rol === 'Desarrollador') {
                     renderRecibido = `
                         <div class="flex flex-col items-center">
                             <input type="checkbox" ${recibidoCB ? 'checked' : ''} onchange="modificarTildeRecibidoCB('${nroDocumento}', this.checked)" class="w-5 h-5 accent-emerald-600 cursor-pointer rounded">
@@ -1494,26 +1557,30 @@
         }
 
         async function cargarReportes() {
-            const { data } = await _supabase.from('reportes_altrom').select('*').order('created_at', { ascending: false });
-            if (data) {
-                const tabla = document.getElementById('tablaReportes');
-                tabla.innerHTML = data.map(r => {
-                    const esListo = r.estado === 'LISTO';
-                    const stringControl = r.nro_control ? String(r.nro_control).padStart(4, '0') : "----";
-                    return `<tr class="border-t border-slate-100 hover:bg-orange-50/50 transition-colors">
-                        <td class="p-4 font-bold ${esListo ? 'text-emerald-600' : 'text-orange-500'}">${esListo ? '✓ LISTO' : 'PENDIENTE'}</td>
-                        <td class="p-4 font-mono font-bold text-slate-700">${stringControl}</td>
-                        <td class="p-4 text-slate-500">${r.fecha}</td>
-                        <td class="p-4 font-bold uppercase text-red-700">${r.cliente}</td>
-                        <td class="p-4 text-slate-500 font-semibold">${r.factura}</td>
-                        <td class="p-4 uppercase text-slate-600 font-medium">${r.chofer}</td>
-                        <td class="p-4 flex gap-2 justify-center items-center">
-                            <button onclick='reexportarPDF(${JSON.stringify(r)})' class="bg-slate-900 hover:bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-[9px] font-bold shadow-sm">PDF</button>
-                            ${(!esListo && (usuarioActual.rol === 'Logistica' || usuarioActual.rol === 'Desarrollador')) ? `<button onclick='generarNC(${JSON.stringify(r)})' class="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase shadow-sm">NC</button>` : ''}
-                            ${usuarioActual.rol === 'Desarrollador' ? `<button onclick='removerReporteSupabase(${r.id}, "${r.factura}")' class="bg-slate-950 text-white px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase hover:bg-red-800 transition-colors">X</button>` : ''}
-                        </td>
-                    </tr>`;
-                }).join('');
+            try {
+                const { data, error } = await _supabase.from('reportes_altrom').select('*').order('created_at', { ascending: false });
+                if (data) {
+                    const tabla = document.getElementById('tablaReportes');
+                    tabla.innerHTML = data.map(r => {
+                        const esListo = r.estado === 'LISTO';
+                        const stringControl = r.nro_control ? String(r.nro_control).padStart(4, '0') : "----";
+                        return `<tr class="border-t border-slate-100 hover:bg-orange-50/50 transition-colors">
+                            <td class="p-4 font-bold ${esListo ? 'text-emerald-600' : 'text-orange-500'}">${esListo ? '✓ LISTO' : 'PENDIENTE'}</td>
+                            <td class="p-4 font-mono font-bold text-slate-700">${stringControl}</td>
+                            <td class="p-4 text-slate-500">${r.fecha}</td>
+                            <td class="p-4 font-bold uppercase text-red-700">${r.cliente}</td>
+                            <td class="p-4 text-slate-500 font-semibold">${r.factura}</td>
+                            <td class="p-4 uppercase text-slate-600 font-medium">${r.chofer}</td>
+                            <td class="p-4 flex gap-2 justify-center items-center">
+                                <button onclick='reexportarPDF(${JSON.stringify(r)})' class="bg-slate-900 hover:bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-[9px] font-bold shadow-sm">PDF</button>
+                                ${(!esListo && usuarioActual && (usuarioActual.rol === 'Logistica' || usuarioActual.rol === 'Desarrollador')) ? `<button onclick='generarNC(${JSON.stringify(r)})' class="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase shadow-sm">NC</button>` : ''}
+                                ${(usuarioActual && usuarioActual.rol === 'Desarrollador') ? `<button onclick='removerReporteSupabase(${r.id}, "${r.factura}")' class="bg-slate-950 text-white px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase hover:bg-red-800 transition-colors">X</button>` : ''}
+                            </td>
+                        </tr>`;
+                    }).join('');
+                }
+            } catch (err) {
+                console.error("Error al cargar reportes:", err);
             }
         }
 
