@@ -368,7 +368,7 @@
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // ==========================================================
-        // LISTENER PERMANENTE DE SESIÓN Y AUTORRENOVACIÓN
+        // LISTENER DE SESIÓN
         // ==========================================================
         _supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
@@ -470,8 +470,11 @@
             const pass = document.getElementById('inputClaveMaestra').value;
             if (pass === CLAVE_FIJA) {
                 document.getElementById('pantallaClave').classList.add('hidden-content');
+                document.getElementById('pantallaAuth').classList.remove('hidden-content');
                 checkSession();
-            } else { alert("Clave maestra incorrecta."); }
+            } else { 
+                alert("Clave maestra incorrecta."); 
+            }
         }
 
         async function checkSession() {
@@ -488,20 +491,16 @@
             }
         }
 
+        // ==========================================================
+        // EVALUACIÓN DE PERFILES CON APROBACIÓN ESTRICTA
+        // ==========================================================
         async function evaluarPerfilYAcceso(authUser) {
             try {
-                const { data: perfil, error } = await _supabase.from('perfiles_usuarios').select('*').eq('id', authUser.id).maybeSingle();
-                
-                if (error && (error.status === 401 || error.code === 'PGRST301')) {
-                    await _supabase.auth.signOut();
-                    alert("Tu sesión caducó. Inicia sesión nuevamente.");
-                    document.getElementById('pantallaAuth').classList.remove('hidden-content');
-                    return;
-                }
-
+                // El Desarrollador Master siempre entra directo
                 if (authUser.email === CORREO_MASTER) {
+                    const { data: perfilMaster } = await _supabase.from('perfiles_usuarios').select('*').eq('id', authUser.id).maybeSingle();
                     usuarioActual = { id: authUser.id, email: authUser.email, rol: 'Desarrollador', aprobado: true };
-                    if (!perfil) {
+                    if (!perfilMaster) {
                         await _supabase.from('perfiles_usuarios').insert([usuarioActual]);
                     }
                     inicializarEntornoWeb();
@@ -509,26 +508,36 @@
                     return;
                 }
 
-                if (!perfil) {
-                    const rolMeta = (authUser.user_metadata && authUser.user_metadata.rol) ? authUser.user_metadata.rol : 'Visualizador';
-                    usuarioActual = { id: authUser.id, email: authUser.email, rol: rolMeta, aprobado: true };
-                    inicializarEntornoWeb();
+                // Consultar el perfil real en la base de datos
+                const { data: perfil, error } = await _supabase
+                    .from('perfiles_usuarios')
+                    .select('*')
+                    .eq('id', authUser.id)
+                    .maybeSingle();
+
+                if (error && (error.status === 401 || error.code === 'PGRST301')) {
+                    await _supabase.auth.signOut();
+                    alert("Tu sesión caducó. Inicia sesión nuevamente.");
+                    document.getElementById('pantallaAuth').classList.remove('hidden-content');
                     return;
                 }
 
-                if (!perfil.aprobado) {
+                // Si no tiene perfil creado aún o no está aprobado por el desarrollador, se retiene en espera
+                if (!perfil || !perfil.aprobado) {
+                    document.getElementById('pantallaClave').classList.add('hidden-content');
                     document.getElementById('pantallaAuth').classList.add('hidden-content');
+                    document.getElementById('contenidoWeb').classList.add('hidden-content');
                     document.getElementById('pantallaEspera').classList.remove('hidden-content');
                     return;
                 }
 
+                // Usuario validado y aprobado institucionalmente
                 usuarioActual = perfil;
                 inicializarEntornoWeb();
                 registrarAuditoria("INICIO_SESION", `Ingreso al sistema con rol ${perfil.rol}`);
             } catch (err) {
-                console.error("Fallo de acceso, activando modo seguro:", err);
-                usuarioActual = { id: authUser.id, email: authUser.email, rol: 'Visualizador', aprobado: true };
-                inicializarEntornoWeb();
+                console.error("Error al verificar perfil:", err);
+                document.getElementById('pantallaAuth').classList.remove('hidden-content');
             }
         }
 
@@ -580,36 +589,57 @@
         }
 
         async function handleLogin() {
-            const email = document.getElementById('email').value;
+            const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
             const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
             if (error) { 
+                document.getElementById('authMsg').className = "mt-4 text-[9px] text-red-500 font-bold uppercase";
                 document.getElementById('authMsg').innerText = "Error: " + error.message; 
             } else { 
                 evaluarPerfilYAcceso(data.user); 
             }
         }
 
+        // ==========================================================
+        // REGISTRO CON RETENCIÓN OBLIGATORIA (APROBADO: FALSE)
+        // ==========================================================
         async function handleSignup() {
-            const email = document.getElementById('email').value;
+            const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
             const rol = document.getElementById('registerRol').value;
 
-            if(!rol) { alert("Debes seleccionar un rol institucional para el registro."); return; }
+            if(!rol) { 
+                alert("Debes seleccionar un rol institucional para el registro."); 
+                return; 
+            }
 
             const { data, error } = await _supabase.auth.signUp({ 
                 email, 
                 password,
                 options: { data: { rol: rol } }
             });
-            if (error) { document.getElementById('authMsg').innerText = "Error: " + error.message; return; }
+            
+            if (error) { 
+                document.getElementById('authMsg').className = "mt-4 text-[9px] text-red-500 font-bold uppercase";
+                document.getElementById('authMsg').innerText = "Error: " + error.message; 
+                return; 
+            }
             
             if (data.user) {
+                // Inserción estricta en estado no aprobado
                 const profileData = { id: data.user.id, email: email, rol: rol, aprobado: false };
                 await _supabase.from('perfiles_usuarios').insert([profileData]);
                 
+                // Desconectar inmediatamente para evitar login automático
+                await _supabase.auth.signOut();
+                
                 document.getElementById('authMsg').className = "mt-4 text-[9px] text-green-600 font-bold uppercase";
                 document.getElementById('authMsg').innerText = "¡Registro enviado! Espera que el desarrollador te apruebe.";
+                
+                setTimeout(() => {
+                    document.getElementById('pantallaAuth').classList.add('hidden-content');
+                    document.getElementById('pantallaEspera').classList.remove('hidden-content');
+                }, 1200);
             }
         }
 
